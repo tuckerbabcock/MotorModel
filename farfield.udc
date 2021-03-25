@@ -1,0 +1,15 @@
+INTERFACE . all
+
+# Branches
+set       farfield_radius heatsink_od
+sphere    0   0   0   farfield_radius
+box       -2*farfield_radius   0   -2*farfield_radius   4*farfield_radius   2*farfield_radius   4*farfield_radius
+  attribute _color "0.714286;0.714286;0.571429"
+subtract  none   1   0
+rotatez   90   0   0
+cylinder 0  0  -stack_length 0 0 stack_length stator_od/2
+subtract none 1 0
+extract 0
+  attribute _name $hemisphere_shell
+
+END

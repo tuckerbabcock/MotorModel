@@ -1,0 +1,56 @@
+INTERFACE . ALL
+# Branches:
+set       magnet_angle 360/num_magnets
+set       stator_yoke_thickness (stator_od/2)-((stator_id/2)+slot_depth)-tooth_tip_thickness
+set       shoe_spacing 0.0035
+set       shoe_spacing_angle shoe_spacing*360/pi(stator_id)
+set       shoe_angle 360/num_slots-shoe_spacing_angle
+
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_od/2
+  attribute _color "0.142857;0.428571;0.428571"
+  attribute _bcolor "0.142857;0.428571;0.428571"
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_id/2
+  attribute _color "0.142857;0.428571;0.428571"
+  attribute _bcolor "0.142857;0.428571;0.428571"
+subtract  none   1   0
+  attribute _name $rotor_yoke_solid
+
+store     rotor_yoke_solid   0   0
+restore   rotor_yoke_solid   0
+extract   0
+  attribute _name $rotor_yoke_shell
+
+store     rotor_yoke_shell   0   0
+restore   rotor_yoke_shell   0
+
+udparg    radwaf    ysize     1.1*(rotor_od+magnet_thickness)
+udparg    radwaf    zsize     1.1*(rotor_od+magnet_thickness)
+udparg    radwaf    nspoke    num_magnets
+udprim    radwaf    xframe    "0;stack_length"
+  rotatey 90 0 0
+  translate 0 0 stack_length/2
+store radwaf
+
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_od/2+magnet_thickness
+  attribute _name $rotor_id
+  attribute _color "0.714286;0.571429;0.285714"
+  attribute _bcolor "0.714286;0.571429;0.285714"
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_od/2
+  attribute _name $rotor_magnet
+subtract
+  attribute _name $rotor_solid
+store magnet_solid
+
+restore radwaf
+  attribute _color "0.714286;0.571429;0.285714"
+  attribute _bcolor "0.714286;0.571429;0.285714"
+restore magnet_solid
+intersect #get magnet internal faces
+
+restore magnet_solid
+  extract 0
+union #with internal magnetic faces
+union #with rotor_yoke_shell
+  attribute _name $rotor_assembly
+
+end

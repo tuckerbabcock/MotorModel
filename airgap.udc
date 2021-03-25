@@ -1,0 +1,19 @@
+INTERFACE . ALL
+
+
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   stator_od/2
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_od/2
+subtract  none   1   0
+  attribute _color "0.428571;0.428571;0.571429"
+  attribute _bcolor "0.428571;0.428571;0.571429"
+extract 0
+
+restore stator_assembly_shell
+union 0  0  0
+
+restore rotor_assembly_shell
+union 0  0  0
+   attribute _name $motor_assembly
+
+
+END
