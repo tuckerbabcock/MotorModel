@@ -1,0 +1,4 @@
+*.egads
+mesh/*
+autoEgads.csm
+*.jrnl

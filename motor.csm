@@ -55,9 +55,9 @@ attribute capsGroup $motor
 
 # set farfield faces
 ifthen num_slots EQ 24
-   select face 607
+   select face 541
       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-   select face 608
+   select face 542
       attribute AFLR_GBC   $FARFIELD_UG3_GBC
 elseif num_slots EQ 21
    select face 501
