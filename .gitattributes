@@ -2,3 +2,4 @@ mesh/motor0.smb filter=lfs diff=lfs merge=lfs -text
 mesh/motor.egadslite filter=lfs diff=lfs merge=lfs -text
 mesh/motor.egadslite.sup filter=lfs diff=lfs merge=lfs -text
 mesh/motor.eto filter=lfs diff=lfs merge=lfs -text
+mesh/motor.egads filter=lfs diff=lfs merge=lfs -text
