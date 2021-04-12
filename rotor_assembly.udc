@@ -19,9 +19,12 @@ store     rotor_yoke_solid   0   0
 restore   rotor_yoke_solid   0
 extract   0
   attribute _name $rotor_yoke_shell
+select face 1
+   attribute AFLR_GBC   $TRANSP_UG3_GBC
+select face 3
+   attribute AFLR_GBC   $TRANSP_UG3_GBC
 
 store     rotor_yoke_shell   0   0
-restore   rotor_yoke_shell   0
 
 udparg    radwaf    ysize     1.1*(rotor_od+magnet_thickness)
 udparg    radwaf    zsize     1.1*(rotor_od+magnet_thickness)
@@ -29,6 +32,8 @@ udparg    radwaf    nspoke    num_magnets
 udprim    radwaf    xframe    "0;stack_length"
   rotatey 90 0 0
   translate 0 0 stack_length/2
+select face
+   attribute AFLR_GBC   $TRANSP_UG3_GBC
 store radwaf
 
 cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_od/2+magnet_thickness
@@ -39,6 +44,14 @@ cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_od/2
   attribute _name $rotor_magnet
 subtract
   attribute _name $rotor_solid
+select face 1
+   attribute AFLR_GBC   $TRANSP_UG3_GBC
+select face 3
+   attribute AFLR_GBC   $TRANSP_UG3_GBC
+select face 5
+   attribute AFLR_GBC   $TRANSP_UG3_GBC
+select face 6
+   attribute AFLR_GBC   $TRANSP_UG3_GBC
 store magnet_solid
 
 restore radwaf
@@ -49,7 +62,9 @@ intersect #get magnet internal faces
 
 restore magnet_solid
   extract 0
+
 union #with internal magnetic faces
+restore   rotor_yoke_shell   0
 union #with rotor_yoke_shell
   attribute _name $rotor_assembly
 
