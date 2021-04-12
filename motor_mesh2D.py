@@ -19,8 +19,8 @@ myGeometry.saveGeometry("motor2D.egads")
 workDir = "mesh"
 
 # Load AFLR4 aim
-# aflr4 = myProblem.loadAIM(aim = "egadsTessAIM",
-aflr4 = myProblem.loadAIM(aim = "aflr4AIM",
+aflr4 = myProblem.loadAIM(aim = "egadsTessAIM",
+# aflr4 = myProblem.loadAIM(aim = "aflr4AIM",
                           analysisDir = workDir)
 
 # Set project name so a mesh file is generated
@@ -45,6 +45,11 @@ aflr4.setAnalysisVal("Mesh_Format", "VTK")
 
 # angerw1=5 angerw2=10 angdbe=10
 
+# aflr4.setAnalysisVal("Edge_Point_Min", 2)
+# aflr4.setAnalysisVal("Edge_Point_Max", 5)
+aflr4.setAnalysisVal("Tess_Params", [0.003, 0.010, 15])
+# aflr4.setAnalysisVal("TFI_Templates", False)
+
 # Run AIM pre-analysis
 aflr4.preAnalysis()
 
@@ -57,33 +62,13 @@ aflr4.postAnalysis()
 
 # Load TetGen aim with the surface mesh as the parent
 tetgen = myProblem.loadAIM(aim='tetgenAIM', analysisDir= workDir, 
-                           parents="aflr4AIM")
-                           # parents="egadsTessAIM")
+                        #    parents="aflr4AIM")
+                           parents="egadsTessAIM")
 
 # Set the tetgen analysis values
 tetgen.setAnalysisVal('Proj_Name', 'vol_motor2D')
 tetgen.setAnalysisVal('Mesh_Format', 'VTK')
-
-
 tetgen.setAnalysisVal("Tess_Params", [0.0025, 0.01, 15])
-
-
-
-# stator_od = 0.15645
-# stator_id = 0.12450
-# rotor_od = 0.11370
-# rotor_id = 0.11125
-# slot_depth = 0.01210
-# tooth_width = 0.00430
-# magnet_thickness = 0.00440
-# heatsink_od = 0.16000
-# tooth_tip_thickness = 0.00100
-# tooth_tip_angle = 10.00000
-# slot_radius = 0.00100
-# stack_length = 0.0345
-# num_slots = 24
-# num_magnets = 40
-# mag_angle = 360.0 / num_magnets
 
 stator_od = myGeometry.getGeometryVal("stator_od")
 stator_id = myGeometry.getGeometryVal("stator_id")
@@ -97,19 +82,15 @@ tooth_tip_thickness = myGeometry.getGeometryVal("tooth_tip_thickness")
 tooth_tip_angle = myGeometry.getGeometryVal("tooth_tip_angle")
 slot_radius = myGeometry.getGeometryVal("slot_radius")
 stack_length = myGeometry.getGeometryVal("stack_length")
-num_slots = myGeometry.getGeometryVal("num_slots")
-num_magnets = myGeometry.getGeometryVal("num_magnets")
+num_slots = int(myGeometry.getGeometryVal("num_slots"))
+num_magnets = int(myGeometry.getGeometryVal("num_magnets"))
 mag_angle = 360.0 / num_magnets
-
 
 # Sepecify a point in each region with the different ID's
 regions = [
-   ('farfield1', { 'id' : 1, 'seed' : [-2*stator_od/3, 0.0, 0.0] }),
-   ('farfield2', { 'id' : 2, 'seed' : [2*stator_od/3, 0.0, 0.0] }),
-   ('farfield3', { 'id' : 3, 'seed' : [0.0, 0.0, 0.0] }),
-   ('stator', { 'id' : 4, 'seed' : [0.0, -(stator_od+3*stator_id)/8,  0.0] }),
-   ('rotor', { 'id' : 5, 'seed' : [0.0, -(rotor_od+3*rotor_id)/8, 0.0] }),
-   ('airgap', { 'id' : 6, 'seed' : [0.0, -(stator_id+6*(rotor_od/2+magnet_thickness))/8, 0.0] }),
+   ('stator', { 'id' : 1, 'seed' : [0.0, -(stator_od+3*stator_id)/8,  0.0] }),
+   ('rotor', { 'id' : 2, 'seed' : [0.0, -(rotor_od+3*rotor_id)/8, 0.0] }),
+   ('airgap', { 'id' : 3, 'seed' : [0.0, -(stator_id+6*(rotor_od/2+magnet_thickness))/8, 0.0] }),
 ]
 
 for i in range(1,num_magnets+1):
@@ -124,7 +105,7 @@ for i in range(1, num_slots*2+1):
    r = (stator_id + stator_od) / 4
    dtheta = (60.0 / num_slots)*math.pi / 180.0
 
-   theta = (((i-1)//4)*360.0 / num_slots)*math.pi / 180.0
+   theta = (((i-1)//2)*360.0 / num_slots)*math.pi / 180.0
 
    index = i % 2
    if (index == 0):

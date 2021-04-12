@@ -10,7 +10,7 @@ despmtr   heatsink_od       0.16000
 despmtr   tooth_tip_thickness       0.00150
 despmtr   tooth_tip_angle      20.00000
 despmtr   slot_radius       0.00100
-despmtr   stack_length       0.00500
+despmtr   stack_length       0.00100
 cfgpmtr   num_slots      6.00000
 cfgpmtr   num_magnets       4.00000
 
@@ -37,67 +37,7 @@ UDPRIM $/rotor_assembly
 UDPRIM $/airgap
 #   store motor_assembly_shell  0   0
 
-# UDPRIM $/farfield
-#   store half_farfield
-
-# restore motor_assembly_shell
-# restore half_farfield
-# union 0  0  0
-# restore half_farfield
-# mirror 1 0 0 0
-# union   0   0   0
-#   attribute _name $final_assembly
-
 # set all faces to be transparent
 select face
 # attribute AFLR_GBC   $TRANSP_UG3_GBC
 attribute capsGroup $motor
-
-# # # set farfield faces
-# ifthen num_slots EQ 6
-#    select face 241
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 242
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 26
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 5
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 1
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 3
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 153
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 175
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 206
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 190
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 221
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 205
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 20
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 126
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-
-# ifthen num_slots EQ 24
-#    select face 541
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 542
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-# elseif num_slots EQ 21
-#    select face 501
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 502
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-# elseif num_slots EQ 18
-#    select face 439
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-#    select face 440
-#       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-# endif
-
