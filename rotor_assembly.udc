@@ -32,6 +32,7 @@ udparg    radwaf    nspoke    num_magnets
 udprim    radwaf    xframe    "0;stack_length"
   rotatey 90 0 0
   translate 0 0 stack_length/2
+rotatez rotor_rotation 0 0
 select face
    attribute AFLR_GBC   $TRANSP_UG3_GBC
 store radwaf

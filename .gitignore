@@ -1,6 +1,7 @@
 *.egads
 mesh/*
 autoEgads.csm
+autosave.csm
 *.jrnl
 *.gf
 *.vtk
