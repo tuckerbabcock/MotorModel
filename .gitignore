@@ -2,3 +2,6 @@
 mesh/*
 autoEgads.csm
 *.jrnl
+*.gf
+*.vtk
+*.mesh
