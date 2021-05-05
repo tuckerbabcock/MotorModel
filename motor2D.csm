@@ -1,4 +1,20 @@
 # Constant, Design, and Output Parameters:
+# despmtr   stator_od       0.15645
+# despmtr   stator_id       0.12450
+# despmtr   rotor_od       0.11370
+# despmtr   rotor_id       0.11125
+# despmtr   slot_depth       0.01210
+# despmtr   tooth_width       0.00430
+# despmtr   magnet_thickness       0.00440
+# despmtr   heatsink_od       0.16000
+# despmtr   tooth_tip_thickness       0.00150
+# despmtr   tooth_tip_angle      30.00000
+# despmtr   slot_radius       0.00100
+# despmtr   stack_length       0.00200
+# despmtr   rotor_rotation       0.0
+# cfgpmtr   num_slots      6.00000
+# cfgpmtr   num_magnets       180.00000
+
 despmtr   stator_od       0.15645
 despmtr   stator_id       0.12450
 despmtr   rotor_od       0.11370
@@ -7,13 +23,13 @@ despmtr   slot_depth       0.01210
 despmtr   tooth_width       0.00430
 despmtr   magnet_thickness       0.00440
 despmtr   heatsink_od       0.16000
-despmtr   tooth_tip_thickness       0.00150
-despmtr   tooth_tip_angle      20.00000
+despmtr   tooth_tip_thickness       0.00100
+despmtr   tooth_tip_angle      10.00000
 despmtr   slot_radius       0.00100
-despmtr   stack_length       0.00100
+despmtr   stack_length       0.001
 despmtr   rotor_rotation       0.0
-cfgpmtr   num_slots      6.00000
-cfgpmtr   num_magnets       4.00000
+cfgpmtr   num_slots      24.00000
+cfgpmtr   num_magnets       160.00000
 
 CFGPMTR   DumpEgads 0
 
@@ -37,6 +53,27 @@ UDPRIM $/rotor_assembly
 
 UDPRIM $/airgap
 #   store motor_assembly_shell  0   0
+
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_id/2
+extract 0
+select face 1
+   attribute AFLR_GBC   $TRANSP_UG3_GBC
+select face 2
+   attribute AFLR_GBC   $TRANSP_UG3_GBC
+select face 3
+   attribute AFLR_GBC   $STD_UG3_GBC
+   attribute .tParams 0.0025;0.5;15
+select face 4
+   attribute AFLR_GBC   $STD_UG3_GBC
+   attribute .tParams 0.0025;0.5;15
+
+union 0  0  0
+   attribute _name $motor_assembly
+
+select face 8
+   attribute .tParams 0.0005;0.5;15
+select face 23
+   attribute .tParams 0.0005;0.5;15
 
 # set all faces to be transparent
 select face

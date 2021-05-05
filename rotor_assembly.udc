@@ -23,6 +23,16 @@ select face 1
    attribute AFLR_GBC   $TRANSP_UG3_GBC
 select face 3
    attribute AFLR_GBC   $TRANSP_UG3_GBC
+select face 5
+   attribute AFLR_GBC   $TRANSP_UG3_GBC
+select face 6
+   attribute AFLR_GBC   $TRANSP_UG3_GBC
+select face 2
+   attribute AFLR_GBC   $STD_UG3_GBC
+   attribute .tParams 0.001;0.5;15
+select face 4
+   attribute AFLR_GBC   $STD_UG3_GBC
+   attribute .tParams 0.001;0.5;15
 
 store     rotor_yoke_shell   0   0
 
@@ -53,6 +63,12 @@ select face 5
    attribute AFLR_GBC   $TRANSP_UG3_GBC
 select face 6
    attribute AFLR_GBC   $TRANSP_UG3_GBC
+select face 2
+   attribute AFLR_GBC   $STD_UG3_GBC
+   attribute .tParams 0.001;0.5;15
+select face 4
+   attribute AFLR_GBC   $STD_UG3_GBC
+   attribute .tParams 0.001;0.5;15
 store magnet_solid
 
 restore radwaf
