@@ -44,6 +44,8 @@ skbeg     0   0   0   1
    linseg    ::x[10]   ::y[10]   0
    arc       ::x[1]   ::y[1]   0   ::d[1]   xy
 skend     0
+select face
+   attribute AFLR_GBC   $STD_UG3_GBC
 translate 0   -stator_id/2   -stack_length/2
 extrude   0   0   stack_length
 store     half_tooth   0   0

@@ -8,26 +8,23 @@ import math
 myProblem = capsProblem()
 
 # Load CSM file and build the geometry explicitly
-myGeometry = myProblem.loadCAPS("motor.csm")
-
-# myGeometry.setGeometryVal("rotor_rotation", 1.0)
-
+myGeometry = myProblem.loadCAPS("motor2D.csm")
 myGeometry.buildGeometry()
-myGeometry.saveGeometry("motor.egads")
+myGeometry.saveGeometry("motor2D.egads")
 
 # # Load EGADS file
-# myGeometry = myProblem.loadCAPS("motor.egads")
+# myGeometry = myProblem.loadCAPS("motor2D.egads")
 
 # Working directory
 workDir = "mesh"
 
 # Load AFLR4 aim
-# aflr4 = myProblem.loadAIM(aim = "egadsTessAIM",
-aflr4 = myProblem.loadAIM(aim = "aflr4AIM",
+aflr4 = myProblem.loadAIM(aim = "egadsTessAIM",
+# aflr4 = myProblem.loadAIM(aim = "aflr4AIM",
                           analysisDir = workDir)
 
 # Set project name so a mesh file is generated
-aflr4.setAnalysisVal("Proj_Name", "surf_motor")
+aflr4.setAnalysisVal("Proj_Name", "surf_motor2D")
 
 # Set AIM verbosity
 # aflr4.setAnalysisVal("Mesh_Quiet_Flag", False)
@@ -38,13 +35,15 @@ aflr4.setAnalysisVal("Mesh_Format", "VTK")
 # Set maximum and minimum edge lengths relative to capsMeshLength
 # aflr4.setAnalysisVal("Mesh_Length_Factor", 1)
 # aflr4.setAnalysisVal("Mesh_Elements", "Tri")
-# aflr4.setAnalysisVal("Tess_Params", [0.00375, 0.025, 15])
+# aflr4.setAnalysisVal("Tess_Params", [0.1, 0.005, 90])
 
-aflr4.setAnalysisVal("max_scale", 0.005)
-# aflr4.setAnalysisVal("min_scale", 0.1)
+#aflr4.setAnalysisVal("max_scale", 0.075)
+# aflr4.setAnalysisVal("min_scale", 0.05)
 # aflr4.setAnalysisVal("ff_cdfr", 1.25)
 # aflr4.setAnalysisVal("curv_factor", 0.5)
 # aflr4.setAnalysisVal("Mesh_Gen_Input_String", "cdfr=1.5 curv_factor=1e16 min_nseg_loop=3 min_nseg=2")
+
+# aflr4.setAnalysisVal("Tess_Params", [0.002, 0.05, 15])
 
 # Run AIM pre-analysis
 aflr4.preAnalysis()
@@ -58,11 +57,11 @@ aflr4.postAnalysis()
 
 # Load TetGen aim with the surface mesh as the parent
 tetgen = myProblem.loadAIM(aim='tetgenAIM', analysisDir= workDir, 
-                           parents="aflr4AIM")
-                        #    parents="egadsTessAIM")
+                        #    parents="aflr4AIM")
+                           parents="egadsTessAIM")
 
 # Set the tetgen analysis values
-tetgen.setAnalysisVal('Proj_Name', 'vol_motor')
+tetgen.setAnalysisVal('Proj_Name', 'vol_motor2D')
 tetgen.setAnalysisVal('Mesh_Format', 'VTK')
 # tetgen.setAnalysisVal("Tess_Params", [0.0025, 0.01, 15])
 
@@ -85,49 +84,29 @@ mag_angle = 360.0 / num_magnets
 
 # Sepecify a point in each region with the different ID's
 regions = [
-   ('farfield1', { 'id' : 1, 'seed' : [-2*stator_od/3, 0.0, 0.0] }),
-   ('farfield2', { 'id' : 2, 'seed' : [2*stator_od/3, 0.0, 0.0] }),
-   ('farfield3', { 'id' : 3, 'seed' : [0.0, 0.0, 0.0] }),
-   ('stator', { 'id' : 4, 'seed' : [0.0, -(stator_od+3*stator_id)/8,  0.0] }),
-   ('rotor', { 'id' : 5, 'seed' : [0.0, -(rotor_od+3*rotor_id)/8, 0.0] }),
-   ('airgap', { 'id' : 6, 'seed' : [0.0, -(stator_id+6*(rotor_od/2+magnet_thickness))/8, 0.0] }),
+   ('stator', { 'id' : 1, 'seed' : [0.0, -(stator_od+3*stator_id)/8,  0.0] }),
+   ('rotor', { 'id' : 2, 'seed' : [0.0, -(rotor_od+3*rotor_id)/8, 0.0] }),
+   ('airgap', { 'id' : 3, 'seed' : [0.0, -(stator_id+6*(rotor_od/2+magnet_thickness))/8, 0.0] }),
+   ('interior', { 'id' : 4, 'seed' : [0.0, 0.0, 0.0] }),
 ]
 
-for i in range(1, num_slots*4+1):
+for i in range(1, num_slots*2+1):
    r = (stator_id + stator_od) / 4
    dtheta = (60.0 / num_slots)*math.pi / 180.0
-   theta = (((i-1)//4)*360.0 / num_slots)*math.pi / 180.0
+   theta = (((i-1)//2)*360.0 / num_slots)*math.pi / 180.0
 
-   index = i % 4
-   if (index == 1):
-      x = r * math.cos(theta)
-      y = r * math.sin(theta)
-
-      z_offset = stack_length / 2
-      z_inc = r * math.sin(dtheta);
-      regions.append((f'coil{i}', {'id': regions[-1][1]['id']+1,
-                                 'seed': [x, y, z_inc + z_offset]}))
-   elif (index == 2):
+   index = i % 2
+   if (index == 0):
       x = r * math.cos(theta+dtheta)
       y = r * math.sin(theta+dtheta)
-
       regions.append((f'coil{i}', {'id': regions[-1][1]['id']+1,
                                  'seed': [x, y, 0.0]}))
-   elif (index == 3):
-      x = r * math.cos(theta)
-      y = r * math.sin(theta)
-
-      z_offset = -stack_length / 2
-      z_inc = -r * math.sin(dtheta);
-      regions.append((f'coil{i}', {'id': regions[-1][1]['id']+1,
-                                 'seed': [x, y, z_inc + z_offset]}))
-   elif (index == 0):
+   elif (index == 1):
       x = r * math.cos(theta-dtheta)
       y = r * math.sin(theta-dtheta)
-
       regions.append((f'coil{i}', {'id': regions[-1][1]['id']+1,
                                  'seed': [x, y, 0.0]}))
-       
+
 for i in range(1,num_magnets+1):
    r = rotor_od/2 + 0.5*magnet_thickness
    theta = (0.5*mag_angle + (i-1)*mag_angle)*math.pi / 180 + rotor_rotation
@@ -142,10 +121,10 @@ tetgen.preAnalysis()
 tetgen.postAnalysis()
 
 pumi = myProblem.loadAIM(aim = "pumiAIM",
-                           analysisDir = workDir,
-                           parents="tetgenAIM")
+                         analysisDir = workDir,
+                         parents="tetgenAIM")
 
-pumi.setAnalysisVal("Proj_Name", "motor")
+pumi.setAnalysisVal("Proj_Name", "motor2D")
 
 # Set AIM verbosity
 # pumi.setAnalysisVal("Mesh_Quiet_Flag", False)

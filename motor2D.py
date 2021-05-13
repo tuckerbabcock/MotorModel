@@ -16,7 +16,7 @@ torque = []
 if __name__ == "__main__":
     for rotation in range(start, start+nturns):
     # for rotation in range(nturns, 2*nturns):
-        magnets = [7+4*num_slots + (rotation+i)%num_magnets for i in range(0, num_magnets)]
+        magnets = [5+2*num_slots + (rotation+i)%num_magnets for i in range(0, num_magnets)]
         # north = [num for subl in [magnets[i*mag_pitch:(i+1)*mag_pitch][:] for i in range(0, num_magnets_true, 2)] for num in subl]
         # south = [num for subl in [magnets[i*mag_pitch:(i+1)*mag_pitch][:] for i in range(1, num_magnets_true, 2)] for num in subl]
 
@@ -27,10 +27,11 @@ if __name__ == "__main__":
 
         options = {
             "silent": False,
-            "print-options": False,
+            "print-options": True,
             "mesh": {
-                "file": "mesh/motor.smb",
-                "model-file": "mesh/motor.egads"
+                "file": "mesh/motor2D.smb",
+                "model-file": "mesh/motor2D.egads",
+                "refine": 0
             },
             "space-dis": {
                 "basis-type": "nedelec",
@@ -47,86 +48,58 @@ if __name__ == "__main__":
             },
             "lin-solver": {
                 "type": "hypregmres",
-                "printlevel": 2,
-                "maxiter": 125,
+                "printlevel": 1,
+                "maxiter": 200,
                 "abstol": 0.0,
-                "reltol": 1e-8
+                "reltol": 1e-10
             },
             "lin-prec": {
                 "type": "hypreams",
                 "printlevel": 0
             },
             "nonlin-solver": {
-                "type": "newton",
+                "type": "relaxed-newton",
                 "printlevel": 3,
-                "maxiter": 5,
+                "maxiter": 20,
                 "reltol": 1e-4,
                 "abstol": 5e-1,
                 "abort": False
             },
             "components": {
-                "farfields": {
-                    "material": "air",
-                    "linear": True,
-                    "attrs": [1, 2, 3]
-                },
                 "stator": {
-                    "attr": 4,
+                    "attr": 1,
                     "material": "hiperco50",
                     "linear": True
                 },
                 "rotor": {
-                    "attr": 5,
+                    "attr": 2,
                     "material": "hiperco50",
                     "linear": True
                 },
-                "airgap": {
-                    "attr": 6,
+                "air": {
+                    "attrs": [3, 4],
                     "material": "air",
                     "linear": True
-                },
-                "magnets": {
-                    "material": "Nd2Fe14B",
-                    "linear": True,
-                    "attrs": list(range(7+4*num_slots, 7+4*num_slots+num_magnets))
                 },
                 "windings": {
                     "material": "copperwire",
                     "linear": True,
-                    "attrs": list(range(7, 7+4*num_slots))
+                    "attrs": list(range(5, 5+2*num_slots))
+                },
+                "magnets": {
+                    "material": "Nd2Fe14B",
+                    "linear": True,
+                    "attrs": list(range(5+2*num_slots, 5+2*num_slots+num_magnets))
                 }
             },
             "problem-opts": {
                 "fill-factor": 1.0,
                 "current-density": 1.0,
                 "current" : {
-                    "Phase-A":  [15, 16, 17, 18,
-                            23, 24, 25, 26,
-                            39, 40, 41, 42,
-                            47, 48, 49, 50,
-                            63, 64, 65, 66,
-                            71, 72, 73, 74,
-                            87, 88, 89, 90,
-                            95, 96, 97, 98,
-                    ],
-                    "Phase-B":   [11, 12, 13, 14,
-                            19, 20, 21, 22,
-                            35, 36, 37, 38,
-                            43, 44, 45, 46,
-                            59, 60, 61, 62,
-                            67, 68, 69, 70,
-                            83, 84, 85, 86,
-                            91, 92, 93, 94,
-                    ],
-                    # "off":  [7, 8, 9, 10,
-                    #         27, 28, 29, 30,
-                    #         31, 32, 33, 34,
-                    #         51, 52, 53, 54,
-                    #         55, 56, 57, 58,
-                    #         75, 76, 77, 78,
-                    #         79, 80, 81, 82,
-                    #         99, 100, 101, 102,
-                    # ]
+                    "z": [43, 46, 47, 50, 7, 10, 11, 14, 19, 22, 23, 26, 31, 34, 35, 38],
+                    "-z": [44, 45, 48, 49, 8, 9, 12, 13, 20, 21, 24, 25, 32, 33, 36, 37]
+                    # "z": [9, 10, 15, 16],
+                    # "-z": [5, 8, 11, 14]
                 },
                 "magnets": {
                     "north": north,
@@ -136,10 +109,9 @@ if __name__ == "__main__":
                 }
             },
             "bcs": {
-                "essential": [1, 3]
+                "essential": "all"
             }
         }
-
         solver = MachSolver("Magnetostatic", options)
 
         state = solver.getNewField()
@@ -147,8 +119,8 @@ if __name__ == "__main__":
         solver.setFieldValue(state, zero);
 
 
-        current_density = 11e6 # 11 A/m^2
-        fill_factor = 1.0
+        current_density = 11e6 # 11 A/mm^2
+        fill_factor = 0.8
         inputs = {
             "current-density": current_density,
             "fill-factor": fill_factor,
@@ -160,7 +132,7 @@ if __name__ == "__main__":
         solver.printField("B", B, "B", 0, rotation)
 
         torque_options = {
-            "attributes": [5] + magnets,
+            "attributes": [2] + magnets,
             "axis": [0.0, 0.0, 1.0],
             "about": [0.0, 0.0, 0.0]
         }
@@ -170,49 +142,6 @@ if __name__ == "__main__":
         print(torque)
 
     print("Torque: ", torque)
-
-        # dc_inputs = {
-        #     "fill-factor": fill_factor,
-        #     "current-density": current_density,
-        #     "state": state
-        # }
-        # dcloss = solver.calcOutput("DCLoss", dc_inputs);
-        # print("DC loss: ", dcloss)
-
-        # r_s = 0.00020245 # m, 26 AWG
-
-        # nsamples = 9
-        # freqs = np.linspace(100, 2000, nsamples)
-        # fem_ac = np.zeros(nsamples)
-
-        # for i in range(nsamples):
-        #     # freq = 1e3 # 1000 Hz
-        #     freq = float(freqs[i])
-
-        #     ac_inputs = {
-        #         "diam": r_s*2,
-        #         "frequency": freq,
-        #         "fill-factor": fill_factor,
-        #         "state": state
-        #     }
-        #     acloss = solver.calcOutput("ACLoss", ac_inputs);
-        #     print("FEM AC loss: ", acloss)
-        #     fem_ac[i] = acloss
-
-        # print(fem_ac)
-        # print(freqs)
-
-        # fig, ax = plt.subplots()
-        # ax.loglog(freqs, fem_ac, label="Hybrid-FEM")
-        # ax.set(xlabel='frequency (Hz)', ylabel='AC Loss (W)')
-        # ax.grid()
-        # fig.savefig("motor_acloss_loglog.png")
-
-        # fig, ax = plt.subplots()
-        # ax.plot(freqs, fem_ac, label="Hybrid-FEM")
-        # ax.set(xlabel='frequency (Hz)', ylabel='AC Loss (W)')
-        # ax.grid()
-        # fig.savefig("motor_acloss.png")
 
 
 
