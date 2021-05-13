@@ -5,12 +5,12 @@ import numpy as np
 from mach import MachSolver, Mesh, Vector
 
 num_magnets_true = 40
-num_magnets = 80
+num_magnets = 40
 mag_pitch = num_magnets // num_magnets_true
 num_slots = 24
 
 start = 0
-nturns = 1
+nturns = 4
 torque = []
 
 if __name__ == "__main__":
@@ -35,7 +35,7 @@ if __name__ == "__main__":
             },
             "space-dis": {
                 "basis-type": "nedelec",
-                "degree": 2
+                "degree": 1
             },
             "time-dis": {
                 "steady": True,
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
 
         current_density = 11e6 # 11 A/mm^2
-        fill_factor = 0.4
+        fill_factor = 0.8
         inputs = {
             "current-density": current_density,
             "fill-factor": fill_factor,
@@ -138,7 +138,7 @@ if __name__ == "__main__":
         }
         solver.createOutput("torque", torque_options);
 
-        torque.append(solver.calcOutput("torque", inputs) * 34.5)
+        torque.append(solver.calcOutput("torque", inputs))
         print(torque)
 
     print("Torque: ", torque)

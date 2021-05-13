@@ -29,7 +29,7 @@ despmtr   slot_radius       0.00100
 despmtr   stack_length       0.001
 despmtr   rotor_rotation       0.0
 cfgpmtr   num_slots      24.00000
-cfgpmtr   num_magnets       160.00000
+cfgpmtr   num_magnets       80.00000
 
 CFGPMTR   DumpEgads 0
 
@@ -62,18 +62,18 @@ select face 2
    attribute AFLR_GBC   $TRANSP_UG3_GBC
 select face 3
    attribute AFLR_GBC   $STD_UG3_GBC
-   attribute .tParams 0.0025;0.5;15
+   attribute .tParams 0.001;0.5;15
 select face 4
    attribute AFLR_GBC   $STD_UG3_GBC
-   attribute .tParams 0.0025;0.5;15
+   attribute .tParams 0.001;0.5;15
 
 union 0  0  0
    attribute _name $motor_assembly
 
 select face 8
-   attribute .tParams 0.0005;0.5;15
+   attribute .tParams 0.00075;0.5;15
 select face 23
-   attribute .tParams 0.0005;0.5;15
+   attribute .tParams 0.00075;0.5;15
 
 # set all faces to be transparent
 select face
