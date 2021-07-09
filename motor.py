@@ -5,12 +5,12 @@ import numpy as np
 from mach import MachSolver, Mesh, Vector
 
 num_magnets_true = 40
-num_magnets = 40
+num_magnets = 160
 mag_pitch = num_magnets // num_magnets_true
 num_slots = 24
 
-start = 0
-nturns = 4
+start = 10
+nturns = 1
 torque = []
 
 if __name__ == "__main__":
@@ -46,22 +46,22 @@ if __name__ == "__main__":
                 "max-iter": 8
             },
             "lin-solver": {
-                "type": "hypregmres",
+                "type": "minres",
                 "printlevel": 2,
-                "maxiter": 125,
+                "maxiter": 150,
                 "abstol": 0.0,
-                "reltol": 1e-8
+                "reltol": 1e-10
             },
             "lin-prec": {
                 "type": "hypreams",
                 "printlevel": 0
             },
             "nonlin-solver": {
-                "type": "newton",
+                "type": "inexactnewton",
                 "printlevel": 3,
-                "maxiter": 5,
-                "reltol": 1e-4,
-                "abstol": 5e-1,
+                "maxiter": 50,
+                "reltol": 1e-2,
+                "abstol": 0.0,
                 "abort": False
             },
             "components": {
@@ -73,12 +73,12 @@ if __name__ == "__main__":
                 "stator": {
                     "attr": 4,
                     "material": "hiperco50",
-                    "linear": True
+                    "linear": False
                 },
                 "rotor": {
                     "attr": 5,
                     "material": "hiperco50",
-                    "linear": True
+                    "linear": False
                 },
                 "airgap": {
                     "attr": 6,
@@ -100,7 +100,7 @@ if __name__ == "__main__":
                 "fill-factor": 1.0,
                 "current-density": 1.0,
                 "current" : {
-                    "Phase-A":  [15, 16, 17, 18,
+                    "Phase-B":  [15, 16, 17, 18,
                             23, 24, 25, 26,
                             39, 40, 41, 42,
                             47, 48, 49, 50,
@@ -109,7 +109,7 @@ if __name__ == "__main__":
                             87, 88, 89, 90,
                             95, 96, 97, 98,
                     ],
-                    "Phase-B":   [11, 12, 13, 14,
+                    "Phase-A":   [11, 12, 13, 14,
                             19, 20, 21, 22,
                             35, 36, 37, 38,
                             43, 44, 45, 46,
@@ -136,7 +136,7 @@ if __name__ == "__main__":
                 }
             },
             "bcs": {
-                "essential": [1, 3]
+                "essential": "all"
             }
         }
 
@@ -146,8 +146,7 @@ if __name__ == "__main__":
         zero = Vector(np.array([0.0, 0.0, 0.0]))
         solver.setFieldValue(state, zero);
 
-
-        current_density = 11e6 # 11 A/m^2
+        current_density = 1.1e7 # 11 A/mm^2
         fill_factor = 1.0
         inputs = {
             "current-density": current_density,

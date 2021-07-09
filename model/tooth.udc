@@ -2,7 +2,6 @@ INTERFACE . ALL
 # Branches:
 set       magnet_angle 360/num_magnets
 set       stator_yoke_thickness (stator_od/2)-((stator_id/2)+slot_depth)-tooth_tip_thickness
-set       shoe_spacing 0.0035
 set       shoe_spacing_angle shoe_spacing*360/pi(stator_id)
 set       shoe_angle 360/num_slots-shoe_spacing_angle
 

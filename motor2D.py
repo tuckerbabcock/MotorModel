@@ -10,7 +10,7 @@ mag_pitch = num_magnets // num_magnets_true
 num_slots = 24
 
 start = 0
-nturns = 4
+nturns = 1
 torque = []
 
 if __name__ == "__main__":
@@ -47,7 +47,7 @@ if __name__ == "__main__":
                 "max-iter": 8
             },
             "lin-solver": {
-                "type": "hypregmres",
+                "type": "minres",
                 "printlevel": 1,
                 "maxiter": 200,
                 "abstol": 0.0,
@@ -58,23 +58,23 @@ if __name__ == "__main__":
                 "printlevel": 0
             },
             "nonlin-solver": {
-                "type": "relaxed-newton",
+                "type": "inexactnewton",
                 "printlevel": 3,
-                "maxiter": 20,
-                "reltol": 1e-4,
-                "abstol": 5e-1,
+                "maxiter": 100,
+                "reltol": 5e-5,
+                "abstol": 0.0,
                 "abort": False
             },
             "components": {
                 "stator": {
                     "attr": 1,
                     "material": "hiperco50",
-                    "linear": True
+                    "linear": False
                 },
                 "rotor": {
                     "attr": 2,
                     "material": "hiperco50",
-                    "linear": True
+                    "linear": False
                 },
                 "air": {
                     "attrs": [3, 4],
@@ -93,13 +93,9 @@ if __name__ == "__main__":
                 }
             },
             "problem-opts": {
-                "fill-factor": 1.0,
-                "current-density": 1.0,
                 "current" : {
-                    "z": [43, 46, 47, 50, 7, 10, 11, 14, 19, 22, 23, 26, 31, 34, 35, 38],
-                    "-z": [44, 45, 48, 49, 8, 9, 12, 13, 20, 21, 24, 25, 32, 33, 36, 37]
-                    # "z": [9, 10, 15, 16],
-                    # "-z": [5, 8, 11, 14]
+                    "z": [43, 46, 47, 50, 8, 9, 12, 13, 19, 22, 23, 26, 32, 33, 36, 37],
+                    "-z": [44, 45, 48, 49, 7, 10, 11, 14, 20, 21, 24, 25, 31, 34, 35, 38]
                 },
                 "magnets": {
                     "north": north,
@@ -119,8 +115,8 @@ if __name__ == "__main__":
         solver.setFieldValue(state, zero);
 
 
-        current_density = 11e6 # 11 A/mm^2
-        fill_factor = 0.8
+        current_density = 7.72e6 # 11 A/mm^2
+        fill_factor = 1.0
         inputs = {
             "current-density": current_density,
             "fill-factor": fill_factor,

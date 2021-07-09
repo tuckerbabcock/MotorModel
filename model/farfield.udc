@@ -3,6 +3,8 @@ INTERFACE . all
 # Branches
 set       farfield_radius heatsink_od
 sphere    0   0   0   farfield_radius
+select face
+   attribute AFLR_GBC   $STD_UG3_GBC
 box       -2*farfield_radius   0   -2*farfield_radius   4*farfield_radius   2*farfield_radius   4*farfield_radius
   attribute _color "0.714286;0.714286;0.571429"
 subtract  none   1   0

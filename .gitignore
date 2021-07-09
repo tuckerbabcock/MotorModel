@@ -1,5 +1,6 @@
 *.egads
 mesh/*
+Paraview/*
 autoEgads.csm
 autosave.csm
 *.jrnl

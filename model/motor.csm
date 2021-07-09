@@ -1,5 +1,5 @@
 # Constant, Design, and Output Parameters:
-despmtr   stator_od       0.15645
+despmtr   stator_od       0.15645 # 157.4
 despmtr   stator_id       0.12450
 despmtr   rotor_od       0.11370
 despmtr   rotor_id       0.11125
@@ -56,19 +56,19 @@ attribute capsGroup $motor
 
 # set farfield faces
 ifthen num_slots EQ 24
-   select face 541
+   select face 781 #541 #543
       attribute AFLR_GBC   $FARFIELD_UG3_GBC
-   select face 542
+   select face 782 #542 #544
       attribute AFLR_GBC   $FARFIELD_UG3_GBC
 elseif num_slots EQ 21
    select face 501
-      attribute AFLR_GBC   $FARFIELD_UG3_GBC
+      attribute AFLR_GBC   $STD_UG3_GBC
    select face 502
-      attribute AFLR_GBC   $FARFIELD_UG3_GBC
+      attribute AFLR_GBC   $STD_UG3_GBC
 elseif num_slots EQ 18
    select face 439
-      attribute AFLR_GBC   $FARFIELD_UG3_GBC
+      attribute AFLR_GBC   $STD_UG3_GBC
    select face 440
-      attribute AFLR_GBC   $FARFIELD_UG3_GBC
+      attribute AFLR_GBC   $STD_UG3_GBC
 endif
 

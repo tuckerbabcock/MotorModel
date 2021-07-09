@@ -11,9 +11,12 @@ myProblem = capsProblem()
 myGeometry = myProblem.loadCAPS("motor.csm")
 
 # myGeometry.setGeometryVal("rotor_rotation", 1.0)
+myGeometry.setGeometryVal("num_magnets", 160)
 
 myGeometry.buildGeometry()
 myGeometry.saveGeometry("motor.egads")
+# myGeometry.saveGeometry("motor.igs")
+# myGeometry.saveGeometry("motor.stl")
 
 # # Load EGADS file
 # myGeometry = myProblem.loadCAPS("motor.egads")
@@ -130,7 +133,7 @@ for i in range(1, num_slots*4+1):
        
 for i in range(1,num_magnets+1):
    r = rotor_od/2 + 0.5*magnet_thickness
-   theta = (0.5*mag_angle + (i-1)*mag_angle)*math.pi / 180 + rotor_rotation
+   theta = (0.5*mag_angle + (i-1)*mag_angle)*math.pi/180 + rotor_rotation*math.pi/180
    x = r * math.cos(theta)
    y = r * math.sin(theta)
    regions.append((f'mag{i}', {'id': regions[-1][1]['id']+1, 'seed': [x, y, 0.0]}))
