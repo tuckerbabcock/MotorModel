@@ -39,7 +39,7 @@ class SlotArea(om.ExplicitComponent):
                      wt/2,
                      0.0])
 
-        tooth_area = _polygon_area(x, y) * 2
+        tooth_area = _polygon_area(x, y) * -2 # negative since the coordinates trace half a tooth clockwise
         winding_band_area = (np.pi * (sir+ds)**2 - np.pi * (sir)**2) / num_slots
         slot_area = winding_band_area - tooth_area
 
