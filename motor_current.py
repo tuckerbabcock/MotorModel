@@ -10,15 +10,15 @@ class SlotArea(om.ExplicitComponent):
         self.options.declare("num_slots", types=int)
 
     def setup(self):
-        self.add_input("stator_inner_radius", units = "m", desc=" The inner radius of the stator")
-        self.add_input("tooth_tip_thickness", units = "m", desc=" The thickness at the end of the tooth")
-        self.add_input("tooth_tip_angle", units = "deg", desc=" The angle between the flat on the back of the shoe and the horizontal")
-        self.add_input("slot_depth", units = "m", desc=" The distance between the the stator inner radius and the edge of the stator yoke")
-        self.add_input("slot_radius", units = "m", desc=" The radius of the fillet between the tooth and stator yoke")
-        self.add_input("tooth_width", units = "m", desc=" The width of the tooth")
-        self.add_input("shoe_spacing", units = "m", desc=" The arc length distance between the tips of the stator teeth")
+        self.add_input("stator_inner_radius", desc=" The inner radius of the stator")
+        self.add_input("tooth_tip_thickness", desc=" The thickness at the end of the tooth")
+        self.add_input("tooth_tip_angle", desc=" The angle between the flat on the back of the shoe and the horizontal")
+        self.add_input("slot_depth", desc=" The distance between the the stator inner radius and the edge of the stator yoke")
+        self.add_input("slot_radius", desc=" The radius of the fillet between the tooth and stator yoke")
+        self.add_input("tooth_width", desc=" The width of the tooth")
+        self.add_input("shoe_spacing", desc=" The arc length distance between the tips of the stator teeth")
         
-        self.add_output("slot_area", units = "m**2", desc="The area of a winding slot")
+        self.add_output("slot_area", desc="The area of a winding slot")
 
     def compute(self, inputs, outputs):
         num_slots = self.options["num_slots"]
@@ -75,10 +75,10 @@ class CopperArea(om.ExplicitComponent):
 
     def setup(self):
         self.add_input("num_strands", desc=" Number of strands in hand for litz wire")
-        self.add_input("wire_radius", units = "m", desc=" Radius of one strand of litz wire")
+        self.add_input("wire_radius", desc=" Radius of one strand of litz wire")
         
-        self.add_output("strand_area", units = "m**2", desc=" The area of one strand of litz wire")
-        self.add_output("copper_area", units = "m**2", desc=" The copper area in a winding slot")
+        self.add_output("strand_area", desc=" The area of one strand of litz wire")
+        self.add_output("copper_area", desc=" The copper area in a winding slot")
 
     def compute(self, inputs, outputs):
         num_turns = self.options["num_turns"]
@@ -109,26 +109,19 @@ class MotorCurrent(om.Group):
         self.add_subsystem("copper_area", CopperArea(num_turns=num_turns),
                            promotes=["*"])
 
-        self.add_subsystem("fill_factor", om.ExecComp("fill_factor = copper_area / slot_area",
-                                                      copper_area={'units': 'm**2'},
-                                                      slot_area={'units': 'm**2'}),
+        self.add_subsystem("fill_factor", om.ExecComp("fill_factor = copper_area / slot_area"),
                            promotes=["*"])
 
         # not sure why this is cube root instead of square root, but it appears to be the same as MotorCAD
         self.add_subsystem("current_density",
-                           om.ExecComp("current_density = rms_current_density * power(2, 1./3) * fill_factor",
-                                       current_density={'units': 'A/m**2'},
-                                       rms_current_density={'units': 'A/m**2'}),
+                           om.ExecComp("current_density = rms_current_density * power(2, 1./3) * fill_factor"),
                            promotes=["*"])
 
         self.add_subsystem("rms_current",
-                           om.ExecComp("rms_current = rms_current_density * strand_area * num_strands",
-                                       rms_current={'units': 'A'},
-                                       rms_current_density={'units': 'A/m**2'},
-                                       strand_area={'units': 'm**2'}),
+                           om.ExecComp("rms_current = rms_current_density * strand_area * num_strands"),
                            promotes=["*"])
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
 
     class TestPolygonArea(unittest.TestCase):
