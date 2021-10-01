@@ -12,7 +12,7 @@ subtract  none   1   0
 store     part_winding_straight   0   0
 restore   part_winding_straight   0
 extract 7
-revolve   0   0   0   0   0   1   shoe_spacing_angle/3
+revolve   0   0   0   0   0   1   shoe_spacing_angle/2
 restore   part_winding_straight   0
 join 0 0
 extract 0

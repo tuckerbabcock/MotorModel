@@ -75,7 +75,7 @@ class CopperArea(om.ExplicitComponent):
 
     def setup(self):
         self.add_input("num_strands", desc=" Number of strands in hand for litz wire")
-        self.add_input("wire_radius", desc=" Radius of one strand of litz wire")
+        self.add_input("strand_radius", desc=" Radius of one strand of litz wire")
         
         self.add_output("strand_area", desc=" The area of one strand of litz wire")
         self.add_output("copper_area", desc=" The copper area in a winding slot")
@@ -83,9 +83,9 @@ class CopperArea(om.ExplicitComponent):
     def compute(self, inputs, outputs):
         num_turns = self.options["num_turns"]
         num_strands = inputs["num_strands"]
-        wire_radius = inputs["wire_radius"]
+        strand_radius = inputs["strand_radius"]
 
-        strand_area = np.pi * wire_radius ** 2
+        strand_area = np.pi * strand_radius ** 2
         outputs["strand_area"] = strand_area
         outputs["copper_area"] = strand_area * num_strands * num_turns
 
@@ -151,7 +151,7 @@ if __name__ == "__main__":
             problem["tooth_width"] = 0.00430
             problem["shoe_spacing"] = 0.0035
             problem["num_strands"] = 42
-            problem["wire_radius"] = 0.00016
+            problem["strand_radius"] = 0.00016
 
             problem["rms_current_density"] = 11e6
             

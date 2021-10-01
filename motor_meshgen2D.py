@@ -8,7 +8,7 @@ import math
 myProblem = capsProblem()
 
 # Load CSM file and build the geometry explicitly
-myGeometry = myProblem.loadCAPS("motor2D.csm")
+myGeometry = myProblem.loadCAPS("model/motor2D.csm")
 myGeometry.buildGeometry()
 myGeometry.saveGeometry("motor2D.egads")
 

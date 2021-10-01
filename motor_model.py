@@ -1,6 +1,6 @@
 import openmdao.api as om
 import numpy as np
-from mach import omEGADS, omMeshMove, MachSolver, omMachState, omMachFunctionals
+from mach import omEGADS, omMeshMove, MachSolver, omMachState, omMachFunctional
 from motor_current import MotorCurrent
 
 class Motor(om.Group): 
@@ -52,12 +52,28 @@ class Motor(om.Group):
         # self.connect("vol_mesh_move.vol_mesh_coords", "em_solver.mesh-coords")
 
         self.add_subsystem("torque",
-                            omMachFunctionals(solver=self.emSolver,
-                                              func="torque",
-                                              depends=["mesh_coords", "state"],
-                                              options=torque_options),
+                            omMachFunctional(solver=self.emSolver,
+                                             func="torque",
+                                             depends=["mesh_coords", "state"],
+                                             options=torque_options),
                             promotes_inputs=[("mesh_coords", "vol_mesh_coords"), "state"],
                             promotes_outputs=["torque"])
+
+        self.add_subsystem("ac_loss",
+                            omMachFunctional(solver=self.emSolver,
+                                             func="ac_loss",
+                                             depends=["strand_radius", "frequency", "mesh_coords", "state"],
+                                             options=torque_options),
+                            promotes_inputs=["strand_radius", "frequency", ("mesh_coords", "vol_mesh_coords"), "state"],
+                            promotes_outputs=["ac_loss"])
+
+        # self.add_subsystem("dc_loss",
+        #                     omMachFunctional(solver=self.emSolver,
+        #                                      func="dc_loss",
+        #                                      depends=["strand_radius", "mesh_coords", "state"],
+        #                                      options=torque_options),
+        #                     promotes_inputs=[("mesh_coords", "vol_mesh_coords"), "state"],
+        #                     promotes_outputs=["dc_loss"])
 
         # self.connect("vol_mesh_move.vol_mesh_coords", "torque.mesh-coords")
         # self.connect("em_solver.state", "torque.state")
@@ -159,7 +175,7 @@ em_options = {
         "printlevel": 0
     },
     "nonlin-solver": {
-        "type": "inexactnewton",
+        "type": "newton",
         "printlevel": 3,
         "maxiter": 25,
         "reltol": 1e-4,
@@ -170,12 +186,12 @@ em_options = {
         "stator": {
             "attr": 1,
             "material": "hiperco50",
-            "linear": False
+            "linear": True
         },
         "rotor": {
             "attr": 2,
             "material": "hiperco50",
-            "linear": False
+            "linear": True
         },
         "air": {
             "attrs": [3, 4],
@@ -208,9 +224,6 @@ em_options = {
     "bcs": {
         "essential": "all"
     },
-    "external-fields": {
-        "mesh_coords": {}
-    }
 }
 
 torque_options = {
@@ -242,10 +255,17 @@ if __name__ == "__main__":
     problem.model.set_input_defaults("rotor_rotation", -4.5)
     problem.model.set_input_defaults("shoe_spacing", 0.0035)
     problem.model.set_input_defaults("num_strands", 42)
-    problem.model.set_input_defaults("wire_radius", 0.00016)
+    problem.model.set_input_defaults("strand_radius", 0.00016)
     problem.model.set_input_defaults("rms_current_density", 11e6)
+    problem.model.set_input_defaults("frequency", 1000)
     problem.setup()
 
     problem.run_model()
 
+    print("current_density", problem.get_val("current_density"))
+    print("rms_current", problem.get_val("rms_current"))
     print("torque: ", problem.get_val("torque")*34.5)
+    print("ac_loss: ", problem.get_val("ac_loss"))
+    print("slot_area: ", problem.get_val("slot_area"))
+    print("copper_area: ", problem.get_val("copper_area"))
+    # print("dc_loss: ", problem.get_val("dc_loss"))

@@ -58,7 +58,7 @@ if __name__ == "__main__":
                 "printlevel": 0
             },
             "nonlin-solver": {
-                "type": "inexactnewton",
+                "type": "newton",
                 "printlevel": 3,
                 "maxiter": 100,
                 "reltol": 5e-5,
@@ -69,12 +69,12 @@ if __name__ == "__main__":
                 "stator": {
                     "attr": 1,
                     "material": "hiperco50",
-                    "linear": False
+                    "linear": True
                 },
                 "rotor": {
                     "attr": 2,
                     "material": "hiperco50",
-                    "linear": False
+                    "linear": True
                 },
                 "air": {
                     "attrs": [3, 4],
@@ -141,3 +141,6 @@ if __name__ == "__main__":
 
 
 
+# rms_current [37.15624463]
+# torque:  [-32.48443897]
+# ac_loss:  [0.00058583]
