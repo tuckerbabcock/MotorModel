@@ -1,17 +1,17 @@
 # Constant, Design, and Output Parameters:
-despmtr   stator_od       0.15645
-despmtr   stator_id       0.12450
-despmtr   rotor_od       0.11370
-despmtr   rotor_id       0.11125
+despmtr   stator_od       0.166 #0.15645
+despmtr   stator_id       0.134 #0.12450
+despmtr   rotor_od       0.1232 #0.11370
+despmtr   rotor_id       0.12075 #0.11125
 despmtr   slot_depth       0.01110 # MotorCAD measures from rotor
-despmtr   tooth_width       0.00430
+despmtr   tooth_width       0.005 #0.00430
 despmtr   magnet_thickness       0.00440
 despmtr   heatsink_od       0.16000
 despmtr   tooth_tip_thickness       0.00100
 despmtr   tooth_tip_angle      10.0000001 # just to make it not an integer
 despmtr   slot_radius       0.00100
 despmtr   stack_length       0.001
-despmtr   rotor_rotation       -4.5
+despmtr   rotor_rotation       -4.4
 despmtr   shoe_spacing 0.0035
 cfgpmtr   num_slots      24.00000
 cfgpmtr   num_magnets       40.00000
