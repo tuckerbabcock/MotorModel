@@ -39,15 +39,24 @@ class Motor(om.Group):
                             MotorCurrent(num_slots=num_slots,
                                          num_turns=num_turns),
                             promotes_inputs=["*"],
-                            promotes_outputs=["current_density", "rms_current"])
+                            promotes_outputs=["current_density:phaseA",
+                                              "current_density:phaseB",
+                                              "current_density:phaseC",
+                                              "rms_current"])
 
 
         self.emSolver = MachSolver("Magnetostatic", em_options, self.comm)
         self.add_subsystem("em_solver",
                             omMachState(solver=self.emSolver, 
                                         initial_condition=np.array([0.0, 0.0, 0.0]),
-                                        depends=["current_density", "mesh_coords"]),
-                            promotes_inputs=["current_density", ("mesh_coords", "vol_mesh_coords")],
+                                        depends=["current_density:phaseA",
+                                                 "current_density:phaseB",
+                                                 "current_density:phaseC",
+                                                 "mesh_coords"]),
+                            promotes_inputs=["current_density:phaseA",
+                                             "current_density:phaseB",
+                                             "current_density:phaseC",
+                                             ("mesh_coords", "vol_mesh_coords")],
                             promotes_outputs=["state"])
         # self.connect("vol_mesh_move.vol_mesh_coords", "em_solver.mesh-coords")
 
@@ -59,13 +68,13 @@ class Motor(om.Group):
                             promotes_inputs=[("mesh_coords", "vol_mesh_coords"), "state"],
                             promotes_outputs=["torque"])
 
-        self.add_subsystem("ac_loss",
-                            omMachFunctional(solver=self.emSolver,
-                                             func="ac_loss",
-                                             depends=["strand_radius", "frequency", "mesh_coords", "state"],
-                                             options=torque_options),
-                            promotes_inputs=["strand_radius", "frequency", ("mesh_coords", "vol_mesh_coords"), "state"],
-                            promotes_outputs=["ac_loss"])
+        # self.add_subsystem("ac_loss",
+        #                     omMachFunctional(solver=self.emSolver,
+        #                                      func="ac_loss",
+        #                                      depends=["strand_radius", "frequency", "mesh_coords", "state"],
+        #                                      options=torque_options),
+        #                     promotes_inputs=["strand_radius", "frequency", ("mesh_coords", "vol_mesh_coords"), "state"],
+        #                     promotes_outputs=["ac_loss"])
 
         # self.add_subsystem("dc_loss",
         #                     omMachFunctional(solver=self.emSolver,
@@ -221,6 +230,28 @@ em_options = {
             "ccw": ccw
         }
     },
+    "current": {
+        "phaseA": {
+            "z": [5, 15, 18, 28, 29, 39, 42, 52],
+            "-z": [6, 16, 17, 27, 30, 40, 41, 51]
+        },
+        "phaseB": {
+            "z": [7, 10, 20, 21, 31, 34, 44, 45],
+            "-z": [8, 9, 19, 22, 32, 33, 43, 46]
+        },
+        "phaseC": {
+            "z": [12, 13, 23, 26, 36, 37, 47, 50],
+            "-z": [11, 14, 24, 25, 35, 38, 48, 49]
+        }
+    },
+    "magnets": {
+        "Nd2Fe14B": {
+            "north": north,
+            "cw": cw,
+            "south": south,
+            "ccw": ccw
+        }
+    },
     "bcs": {
         "essential": "all"
     },
@@ -262,7 +293,9 @@ if __name__ == "__main__":
 
     problem.run_model()
 
-    print("current_density", problem.get_val("current_density"))
+    print("current_density:phaseA", problem.get_val("current_density:phaseA"))
+    print("current_density:phaseB", problem.get_val("current_density:phaseB"))
+    print("current_density:phaseC", problem.get_val("current_density:phaseC"))
     print("rms_current", problem.get_val("rms_current"))
     print("torque: ", problem.get_val("torque")*34.5)
     print("ac_loss: ", problem.get_val("ac_loss"))
