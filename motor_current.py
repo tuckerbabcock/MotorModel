@@ -89,6 +89,27 @@ class CopperArea(om.ExplicitComponent):
         outputs["strand_area"] = strand_area
         outputs["copper_area"] = strand_area * num_strands * num_turns
 
+class ThreePhaseCurrent(om.ExplicitComponent):
+    """
+    Component that maps from a peak volumetric current density to the current density
+    for each phase based on electrical angle input
+    """
+    def setup(self):
+        self.add_input("current_density", desc=" Volumetric peak current density")
+        self.add_input("theta_e", val=0.0, desc=" Electrical angle")
+
+        self.add_output("current_density:phaseA", desc=" Volumetric current density for phase A")
+        self.add_output("current_density:phaseB", desc=" Volumetric current density for phase B")
+        self.add_output("current_density:phaseC", desc=" Volumetric current density for phase C")
+    
+    def compute(self, inputs, outputs):
+        current_density = inputs["current_density"]
+        theta_e = inputs["theta_e"]
+
+        outputs["current_density:phaseA"] = current_density * np.sin(theta_e)
+        outputs["current_density:phaseB"] = current_density * np.sin(theta_e + 2*np.pi / 3)
+        outputs["current_density:phaseC"] = current_density * np.sin(theta_e + 4*np.pi / 3)
+
 class MotorCurrent(om.Group):
     """
     Group that combines the SlotArea and CopperArea components to output the required
@@ -114,8 +135,11 @@ class MotorCurrent(om.Group):
 
         # not sure why this is cube root instead of square root, but it appears to be the same as MotorCAD
         self.add_subsystem("current_density",
-                           om.ExecComp("current_density = rms_current_density * power(2, 1./3) * fill_factor"),
+                           om.ExecComp("current_density = rms_current_density * power(2, 1./2) * fill_factor"),
                            promotes=["*"])
+
+        self.add_subsystem("three_phase_current_density", ThreePhaseCurrent(),
+                            promotes=["*"])
 
         self.add_subsystem("rms_current",
                            om.ExecComp("rms_current = rms_current_density * strand_area * num_strands"),
@@ -157,7 +181,7 @@ if __name__ == "__main__":
             
             problem.run_model()
 
-            self.assertAlmostEqual(8989094.151658632, problem.get_val("current_density")[0])
+            self.assertAlmostEqual(8738124.47344907, problem.get_val("current_density:phaseB")[0])
             self.assertAlmostEqual(0.6486044323901864, problem.get_val("fill_factor")[0])
             self.assertAlmostEqual(37.1562446325372, problem.get_val("rms_current")[0])
 
