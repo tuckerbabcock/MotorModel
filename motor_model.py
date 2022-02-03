@@ -252,6 +252,7 @@ em_options = {
             "ccw": ccw
         }
     },
+    "ess-bdr": "all",
     "bcs": {
         "essential": "all"
     },

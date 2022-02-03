@@ -106,9 +106,9 @@ class ThreePhaseCurrent(om.ExplicitComponent):
         current_density = inputs["current_density"]
         theta_e = inputs["theta_e"]
 
-        outputs["current_density:phaseA"] = current_density * np.sin(theta_e)
-        outputs["current_density:phaseB"] = current_density * np.sin(theta_e + 2*np.pi / 3)
-        outputs["current_density:phaseC"] = current_density * np.sin(theta_e + 4*np.pi / 3)
+        outputs["current_density:phaseA"] = current_density * np.sin(-theta_e)
+        outputs["current_density:phaseB"] = current_density * np.sin(-theta_e + 2*np.pi / 3)
+        outputs["current_density:phaseC"] = current_density * np.sin(-theta_e + 4*np.pi / 3)
 
 class MotorCurrent(om.Group):
     """
