@@ -181,36 +181,3 @@ if __name__ == "__main__":
             self.assertAlmostEqual(data_amp[3], 2.2071067811865475)
 
     unittest.main()
-
-    # f = np.array([1.0, 1.0, 2.0])
-    # t = np.array([0.0, np.pi/2, np.pi])
-    # omega = 1
-
-    # max_val, f_bar = sine_fit_max_bar(f, t, omega)
-    # print("max_val:", max_val)
-    # print("f_bar:", f_bar)
-
-    # delta = 1e-8
-    # f = np.array([1.0+delta, 1.0, 2.0])
-    # f1_dot = (sine_fit_max(f, t, omega) - max_val) / delta
-    # f = np.array([1.0, 1.0+delta, 2.0])
-    # f2_dot = (sine_fit_max(f, t, omega) - max_val) / delta
-    # f = np.array([1.0, 1.0, 2.0+delta])
-    # f3_dot = (sine_fit_max(f, t, omega) - max_val) / delta
-
-    # print("f_bar_fd:", [f1_dot, f2_dot, f3_dot])
-
-    # f = np.array([1.0, 1.0, 2.0])
-    # avg_val, f_bar = sine_fit_avg_bar(f, t, omega)
-    # print()
-    # print("avg_val:", avg_val)
-    # print("f_bar:", f_bar)
-
-    # f = np.array([1.0+delta, 1.0, 2.0])
-    # f1_dot = (sine_fit_avg(f, t, omega) - avg_val) / delta
-    # f = np.array([1.0, 1.0+delta, 2.0])
-    # f2_dot = (sine_fit_avg(f, t, omega) - avg_val) / delta
-    # f = np.array([1.0, 1.0, 2.0+delta])
-    # f3_dot = (sine_fit_avg(f, t, omega) - avg_val) / delta
-
-    # print("f_bar_fd:", [f1_dot, f2_dot, f3_dot])
