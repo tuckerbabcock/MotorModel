@@ -81,17 +81,19 @@ class PeriodicFitMaximum(om.ExplicitComponent):
         self.add_input("data_theta_pi_2", shape_by_conn=True, desc=" The data to fit at theta = pi/2")
         self.add_input("data_theta_pi", shape_by_conn=True, desc=" The data to fit at theta = pi")
 
-        self.add_output("data_amplitude", shape_by_conn=True, desc=" The point-wise amplitude of the fit")
+        self.add_output("data_amplitude",
+                        shape_by_conn=True,
+                        copy_shape="data_theta_0",
+                        desc=" The point-wise amplitude of the fit")
 
     def compute(self, inputs, outputs):
         # create column stack for improved cache efficiency when iterating over rows
         data_stack = np.column_stack((inputs["data_theta_0"],
                                       inputs["data_theta_pi_2"],
                                       inputs["data_theta_pi"]))
-
         times = np.array([0.0, np.pi/2, np.pi])
         for i in range(data_stack.shape[0]):
-            outputs["data_amplitude"] = sine_fit_max(data_stack[i, :], times)
+            outputs["data_amplitude"][i] = sine_fit_max(data_stack[i, :], times)
 
 
 if __name__ == "__main__":
@@ -151,6 +153,32 @@ if __name__ == "__main__":
             self.assertAlmostEqual(f_bar[0], f1_dot, places=7)
             self.assertAlmostEqual(f_bar[1], f2_dot, places=7)
             self.assertAlmostEqual(f_bar[2], f3_dot, places=7)
+    
+    class TestPeriodicFitMaximum(unittest.TestCase):
+        def test_ref_motor_current(self):
+            problem = om.Problem()
+            ivc = problem.model.add_subsystem("indeps", om.IndepVarComp())
+            problem.model.add_subsystem("fit", PeriodicFitMaximum())
+
+            data_0 = np.array([-1.0, 2.0, 3.0, 1.0])
+            data_pi_2 = np.array([0.0, 1.0, 4.0, 1.0])
+            data_pi = np.array([1.0, 2.0, 3.0, 2.0])
+            ivc.add_output("data_theta_0", data_0)
+            ivc.add_output("data_theta_pi_2", data_pi_2)
+            ivc.add_output("data_theta_pi", data_pi)
+
+            problem.model.connect("indeps.data_theta_0", "fit.data_theta_0")
+            problem.model.connect("indeps.data_theta_pi_2", "fit.data_theta_pi_2")
+            problem.model.connect("indeps.data_theta_pi", "fit.data_theta_pi")
+
+            problem.setup()
+            problem.run_model()
+
+            data_amp = problem.get_val("fit.data_amplitude")
+            self.assertAlmostEqual(data_amp[0], 1.0)
+            self.assertAlmostEqual(data_amp[1], 3.0)
+            self.assertAlmostEqual(data_amp[2], 4.0)
+            self.assertAlmostEqual(data_amp[3], 2.2071067811865475)
 
     unittest.main()
 
