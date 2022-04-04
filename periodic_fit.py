@@ -1,4 +1,3 @@
-from email.policy import default
 import openmdao.api as om
 import numpy as np
 

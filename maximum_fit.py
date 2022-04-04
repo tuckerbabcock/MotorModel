@@ -46,20 +46,29 @@ class DiscreteInducedExponential(om.ExplicitComponent):
     Component that calculates the discrete induced exponential functional to find the maximum
     """
     def initialize(self):
+        self.options.declare("num_pts", types=int)
         self.options.declare("data_size", types=int)
         self.options.declare("rho", default=10.0)
 
     def setup(self):
-        self.add_input("data", shape_by_conn=True, desc=" The data to find the maximum of ")
+        num_pts = self.options["num_pts"]
+        data_length = self.options["data_size"]
+
+        for i in range(self.options["num_pts"]):
+            self.add_input(f"data_{i}", shape_by_conn=True, desc=" The data to find the maximum of ")
 
         self.add_output("data_amplitude",
                         shape=self.options["data_size"],
                         desc=" The point-wise maximum values")
 
+        self.data_stack = np.empty([num_pts, data_length])
+
     def compute(self, inputs, outputs):
-        data = inputs["data"]
+        data_inputs = [inputs[input] for input in inputs]
+        np.stack(data_inputs, out=self.data_stack)
+
         rho = self.options["rho"]
-        outputs["data_amplitude"] = discrete_induced_exponential(data, rho)
+        outputs["data_amplitude"] = discrete_induced_exponential(self.data_stack, rho)
 
 if __name__ == "__main__":
     import unittest
@@ -122,21 +131,32 @@ if __name__ == "__main__":
 
     class TestDiscreteInducedExponential(unittest.TestCase):
         def test_discrete_induced_exponential(self):
-            data = np.array([[-1.0, 2.0, 3.0, 1.0],
-                             [0.0, 1.0, 4.0, 1.0],
-                             [1.0, 2.0, 3.0, 2.0]])
+            # data = np.array([[-1.0, 2.0, 3.0, 1.0],
+            #                  [0.0, 1.0, 4.0, 1.0],
+            #                  [1.0, 2.0, 3.0, 2.0]])
+
+            data0 = np.array([-1.0, 2.0, 3.0, 1.0])
+            data1 = np.array([0.0, 1.0, 4.0, 1.0])
+            data2 = np.array([1.0, 2.0, 3.0, 2.0])
 
             problem = om.Problem()
-            ivc = problem.model.add_subsystem("indeps", om.IndepVarComp())
-            problem.model.add_subsystem("fit", DiscreteInducedExponential(data_size=data.shape[1]))
+            ivc = problem.model.add_subsystem("indeps", om.IndepVarComp(),
+                                              promotes_outputs=["*"])
+            problem.model.add_subsystem("fit",
+                                        DiscreteInducedExponential(num_pts=3,
+                                                                   data_size=data0.size),
+                                        promotes_inputs=["*"],
+                                        promotes_outputs=["data_amplitude"])
 
-            ivc.add_output("data", data)
-            problem.model.connect("indeps.data", "fit.data")
+            ivc.add_output("data_0", data0)
+            ivc.add_output("data_1", data1)
+            ivc.add_output("data_2", data2)
+            # problem.model.connect("indeps.data", "fit.data")
 
             problem.setup()
             problem.run_model()
 
-            data_amp = problem.get_val("fit.data_amplitude")
+            data_amp = problem.get_val("data_amplitude")
             # print(data_amp)
             self.assertAlmostEqual(data_amp[0], 0.9999545980092709)
             self.assertAlmostEqual(data_amp[1], 1.9999773005503956)
