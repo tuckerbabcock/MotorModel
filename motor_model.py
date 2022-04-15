@@ -1,7 +1,6 @@
 import openmdao.api as om
 import numpy as np
 # from mach import omEGADS, omMeshMove, MachSolver, omMachState, omMachFunctional
-from motor_current import MotorCurrent
 from motor_em_builder import EMMotorBuilder
 from mphys import Multipoint
 from omESP import omESP
@@ -11,6 +10,11 @@ def _buildSolverOptions(num_magnets_true, num_magnets, num_slots, rotations):
     mag_pitch = num_magnets // num_magnets_true
     multipoint_opts = []
     for rotation in rotations:
+
+        theta_m = rotation / num_magnets * (2*np.pi)
+        # divided by 4 since magnetis are in a hallbach array, takes 4 magnets to get 2 poles
+        theta_e = (num_magnets_true/2) * theta_m / 2;
+
         magnets = [5+2*num_slots + (rotation+i)%num_magnets for i in range(0, num_magnets)]
         south = [num for subl in [magnets[i*mag_pitch:(i+1)*mag_pitch][:] for i in range(0, num_magnets_true, 4)] for num in subl]
         cw = [num for subl in [magnets[i*mag_pitch:(i+1)*mag_pitch][:] for i in range(1, num_magnets_true, 4)] for num in subl]
@@ -25,7 +29,8 @@ def _buildSolverOptions(num_magnets_true, num_magnets, num_slots, rotations):
                     "south": south,
                     "ccw": ccw
                 }
-            }
+            },
+            "theta_e": theta_e
         })
 
     return multipoint_opts
@@ -35,35 +40,24 @@ class Motor(Multipoint):
         self.options.declare("solver_options", types=dict)
         self.options.declare("warper_options", types=dict)
         self.options.declare("outputs", types=dict, default=None)
-        self.options.declare("num_turns", types=int, desc=" The number of turns of wire")
-        self.options.declare("num_slots", types=int, desc=" The number of teeth in the stator")
+        self.options.declare("winding_options", types=dict, desc=" Options for configuring MotorCurrent")
         self.options.declare("check_partials", default=False)
 
     def setup(self):
         solver_options = self.options["solver_options"]
         warper_options = self.options["warper_options"]
         outputs = self.options["outputs"]
-        num_turns = self.options["num_turns"]
-        num_slots = self.options["num_slots"]
+        winding_options = self.options["winding_options"]
         check_partials=self.options["check_partials"]
 
         self.add_subsystem("geom",
                            omESP(csm_file="model/motor2D.csm",
-                                 egads_file="mesh/motor2D.egads"),
+                                 egads_file="mesh_motor2D.egads"),
                            promotes_inputs=["*"],
-                           promotes_outputs=["x_surf"])
+                           promotes_outputs=[("x_surf", "x_em")])
 
         self.add_subsystem("convert", om.ExecComp("stator_inner_radius = stator_id / 2"),
                             promotes=["*"])
-
-        self.add_subsystem("current",
-                            MotorCurrent(num_slots=num_slots,
-                                         num_turns=num_turns),
-                            promotes_inputs=["*"],
-                            promotes_outputs=["current_density:phaseA",
-                                              "current_density:phaseB",
-                                              "current_density:phaseC",
-                                              "rms_current"])
 
         depends = ["current_density:phaseA",
                    "current_density:phaseB",
@@ -74,18 +68,33 @@ class Motor(Multipoint):
                                           warper_type="MeshWarper",
                                           warper_options=warper_options,
                                           outputs=outputs,
+                                          winding_options=winding_options,
                                           check_partials=check_partials)
 
-        self.add_subsystem('mesh', em_motor_builder.get_mesh_coordinate_subsystem())
-        self.mphys_add_scenario('analysis', ScenarioMotor(em_motor_builder=em_motor_builder))
+        em_motor_builder.initialize(self.comm)
+
+        self.mphys_add_scenario('analysis',
+                                ScenarioMotor(em_motor_builder=em_motor_builder))
+
+        self.promotes("analysis", inputs=["*"])
+
+        # promote all state inputs
+        # self.promotes("analysis", inputs=["*"])
+        # promote all analysis output inputs
+        # for output in outputs:
+        #     if "depends" in outputs[output]:
+        #         self.promotes("analysis", inputs=[*outputs[output]["depends"]])
+
+        # self.connect("geom.x_surf", "analysis.x_em")
 
 if __name__ == "__main__":
 
     warper_options = {
         "mesh": {
-            "file": "mesh/motor2D.smb",
-            "model-file": "mesh/motor2D.egads",
-            "refine": 0
+            # "file": "mesh/motor2D.smb",
+            # "model-file": "mesh/motor2D.egads",
+            "file": "mesh_motor2D.smb",
+            "model-file": "mesh_motor2D.egads",
         },
         "space-dis": {
             "degree": 1,
@@ -118,12 +127,15 @@ if __name__ == "__main__":
     multipoint_opts = _buildSolverOptions(num_magnets_true,
                                           num_magnets,
                                           num_slots,
-                                          rotations=[0, 2, 4, 6])
+                                        #   rotations=[0, 2, 4, 6])
+                                          rotations=[0, 2])
 
     solver_options = {
         "mesh": {
-            "file": "mesh/motor2D.smb",
-            "model-file": "mesh/motor2D.egads",
+            # "file": "mesh/motor2D.smb",
+            # "model-file": "mesh/motor2D.egads",
+            "file": "mesh_motor2D.smb",
+            "model-file": "mesh_motor2D.egads",
         },
         "space-dis": {
             "basis-type": "nedelec",
@@ -208,22 +220,35 @@ if __name__ == "__main__":
     }
 
     outputs = {
-        "torque" : {
-            "options" : {
+        "torque": {
+            "options": {
                 "attributes": [2] + list(range(5+2*num_slots, 5+2*num_slots+num_magnets)),
                 "axis": [0.0, 0.0, 1.0],
                 "about": [0.0, 0.0, 0.0]
             }
         },
-        "ac_loss" : {}
+        "ac_loss": {
+            "depends": [
+                "stack_length",
+                "slot_area",
+                "frequency",
+                "peak_flux",
+                "strand_radius"
+            ]
+        }
+    }
+
+    winding_options = {
+        "num_slots": num_slots,
+        "num_turns": 12,
+        "num_strands": 42
     }
 
     problem = om.Problem()
     problem.model = Motor(solver_options=solver_options,
                           warper_options=warper_options,
                           outputs=outputs,
-                          num_turns=12,
-                          num_slots=24)
+                          winding_options=winding_options)
 
     problem.model.set_input_defaults("stator_od", 0.15645)
     problem.model.set_input_defaults("stator_id", 0.12450)
@@ -236,23 +261,23 @@ if __name__ == "__main__":
     problem.model.set_input_defaults("tooth_tip_thickness", 0.00100)
     problem.model.set_input_defaults("tooth_tip_angle", 10.0000001)
     problem.model.set_input_defaults("slot_radius", 0.00100)
-    problem.model.set_input_defaults("stack_length", 0.001)
-    problem.model.set_input_defaults("rotor_rotation", -4.5)
+    problem.model.set_input_defaults("stack_length", 0.0345)
+    # problem.model.set_input_defaults("rotor_rotation", -4.5)
     problem.model.set_input_defaults("shoe_spacing", 0.0035)
-    problem.model.set_input_defaults("num_strands", 42)
-    problem.model.set_input_defaults("strand_radius", 0.00016)
-    problem.model.set_input_defaults("rms_current_density", 11e6)
-    problem.model.set_input_defaults("frequency", 1000)
+    # problem.model.set_input_defaults("num_strands", 42)
+    # problem.model.set_input_defaults("strand_radius", 0.00016)
+    # problem.model.set_input_defaults("rms_current_density", 11e6)
+    # problem.model.set_input_defaults("frequency", 1000)
     problem.setup()
 
     problem.run_model()
 
-    print("current_density:phaseA", problem.get_val("current_density:phaseA"))
-    print("current_density:phaseB", problem.get_val("current_density:phaseB"))
-    print("current_density:phaseC", problem.get_val("current_density:phaseC"))
-    print("rms_current", problem.get_val("rms_current"))
-    print("torque: ", problem.get_val("torque")*34.5)
-    print("ac_loss: ", problem.get_val("ac_loss"))
-    print("slot_area: ", problem.get_val("slot_area"))
-    print("copper_area: ", problem.get_val("copper_area"))
-    # print("dc_loss: ", problem.get_val("dc_loss"))
+    # print("current_density:phaseA", problem.get_val("current_density:phaseA"))
+    # print("current_density:phaseB", problem.get_val("current_density:phaseB"))
+    # print("current_density:phaseC", problem.get_val("current_density:phaseC"))
+    # print("rms_current", problem.get_val("rms_current"))
+    # print("torque: ", problem.get_val("torque"))
+    # print("ac_loss: ", problem.get_val("ac_loss"))
+    # print("slot_area: ", problem.get_val("slot_area"))
+    # print("copper_area: ", problem.get_val("copper_area"))
+    # # print("dc_loss: ", problem.get_val("dc_loss"))
