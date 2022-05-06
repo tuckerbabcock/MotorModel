@@ -18,10 +18,9 @@ class SlotArea(om.ExplicitComponent):
     Component that calculates the slot area based on an polygonal approximation 
     of the tooth geometry
     """
-    def initialize(self):
-        self.options.declare("num_slots", types=int)
-
     def setup(self):
+        self.add_input("num_slots",
+                       desc=" The number of slots in the motor")
         self.add_input("stator_inner_radius",
                        desc=" The inner radius of the stator")
         self.add_input("tooth_tip_thickness",
@@ -44,7 +43,7 @@ class SlotArea(om.ExplicitComponent):
         self.declare_partials("*", "*", method="cs")
 
     def compute(self, inputs, outputs):
-        num_slots = self.options["num_slots"]
+        num_slots = inputs["num_slots"][0]
         sir = inputs["stator_inner_radius"][0]
         ttt = inputs["tooth_tip_thickness"][0]
         tta = inputs["tooth_tip_angle"][0] * np.pi / 180 # convert to radians
@@ -159,19 +158,17 @@ class MotorCurrent(om.Group):
     """
 
     def initialize(self):
-        self.options.declare("num_slots", types=int, desc=" The number of teeth in the stator")
         self.options.declare("num_turns", types=int, desc=" The number of turns of wire")
         self.options.declare("num_strands", types=int, desc=" Number of strands in hand for litz wire")
         self.options.declare("theta_e", default=0.0, types=(float, list), desc=" Electrical angle")
 
     def setup(self):
-        num_slots = self.options["num_slots"]
         num_turns = self.options["num_turns"]
         num_strands = self.options["num_strands"]
         theta_e = self.options["theta_e"]
 
         self.add_subsystem("slot_area",
-                           SlotArea(num_slots=num_slots),
+                           SlotArea(),
                            promotes_inputs=["*"],
                            promotes_outputs=["slot_area"])
         self.add_subsystem("copper_area",
@@ -230,7 +227,7 @@ if __name__ == "__main__":
         def test_ref_motor_current(self):
             problem = om.Problem()
             problem.model.add_subsystem("current",
-                                        MotorCurrent(num_strands=42, num_turns=14, num_slots=24),
+                                        MotorCurrent(num_strands=42, num_turns=14),
                                         promotes_inputs=["*"],
                                         promotes_outputs=["slot_area",
                                                           "rms_current",
@@ -238,6 +235,7 @@ if __name__ == "__main__":
 
             problem.setup()
 
+            problem["num_slots"] = 24
             problem["stator_inner_radius"] = 0.06225
             problem["tooth_tip_thickness"] = 0.001
             problem["tooth_tip_angle"] = 10
@@ -258,13 +256,14 @@ if __name__ == "__main__":
         def test_ref_motor_current_partials(self):
             problem = om.Problem()
             problem.model.add_subsystem("current",
-                                        MotorCurrent(num_strands=42, num_turns=14, num_slots=24),
+                                        MotorCurrent(num_strands=42, num_turns=14),
                                         promotes_inputs=["*"],
                                         promotes_outputs=["slot_area",
                                                           "rms_current",
                                                           "three_phase*.current_density:phase*"])
             problem.setup()
 
+            problem["num_slots"] = 24
             problem["stator_inner_radius"] = 0.06225
             problem["tooth_tip_thickness"] = 0.001
             problem["tooth_tip_angle"] = 10

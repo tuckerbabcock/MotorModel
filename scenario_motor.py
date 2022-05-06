@@ -49,14 +49,22 @@ class ScenarioMotor(Scenario):
         self.connect("em_pre.slot_area", "slot_area")
 
         # promote all unconnected inputs from em_pre
-        self.promotes("em_pre", any=["stator_inner_radius",
+        self.promotes("em_pre", any=["num_slots",
+                                     "stator_inner_radius",
                                      "tooth_tip_thickness",
                                      "tooth_tip_angle",
                                      "slot_depth",
                                      "slot_radius",
                                      "tooth_width",
                                      "shoe_spacing",
-                                     "strand_radius",
-                                     "rms_current_density"])
+                                     "rms_current_density",
+                                     "strand_radius"])
+
+        # promote all unconnected I/O from em_post
+        self.promotes("em_post", any=["average_torque",
+                                      "stator_core_loss",
+                                      "stator_mass",
+                                      "stator_volume",
+                                      "num_slots"])
 
         Scenario.configure(self)

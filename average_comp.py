@@ -29,8 +29,7 @@ class AverageComp(om.ExplicitComponent):
 
         self.add_output("data_average",
                         copy_shape="data0",
-                        desc=" The point-wise average values",
-                        tags=["mphys_coupling"])
+                        desc=" The point-wise average values")
 
         self.data_stack = None
 
