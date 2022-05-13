@@ -80,11 +80,11 @@ class CopperArea(om.ExplicitComponent):
     Component that calculates the copper area based on the number of strands, turns,
     and wire radius
     """
-    def initialize(self):
-        self.options.declare("num_turns", types=int, desc=" The number of turns of wire")
-        self.options.declare("num_strands", types=int, desc=" Number of strands in hand for litz wire")
-
     def setup(self):
+        self.add_input("num_turns",
+                       desc=" The number of turns of wire")
+        self.add_input("strands_in_hand",
+                       desc=" Number of strands in hand for litz wire")
         self.add_input("strand_radius",
                        desc=" Radius of one strand of litz wire")
         
@@ -94,24 +94,29 @@ class CopperArea(om.ExplicitComponent):
                         desc=" The copper area in a winding slot")
 
     def setup_partials(self):
-        self.declare_partials("*", "*")
+        self.declare_partials("strand_area", "strand_radius")
+        self.declare_partials("copper_area", "*")
 
     def compute(self, inputs, outputs):
-        num_turns = self.options["num_turns"]
-        num_strands = self.options["num_strands"]
+        num_turns = inputs["num_turns"]
+        strands_in_hand = inputs["strands_in_hand"]
         strand_radius = inputs["strand_radius"]
 
         strand_area = np.pi * strand_radius ** 2
         outputs["strand_area"] = strand_area
-        outputs["copper_area"] = strand_area * num_strands * num_turns
+        outputs["copper_area"] = strand_area * strands_in_hand * num_turns
 
     def compute_partials(self, inputs, partials):
-        num_turns = self.options["num_turns"]
-        num_strands = self.options["num_strands"]
+        num_turns = inputs["num_turns"]
+        strands_in_hand = inputs["strands_in_hand"]
         strand_radius = inputs["strand_radius"]
 
         partials["strand_area", "strand_radius"] = 2 * np.pi * strand_radius
-        partials["copper_area", "strand_radius"] = 2 * np.pi * strand_radius * num_strands * num_turns
+
+        strand_area = np.pi * strand_radius ** 2
+        partials["copper_area", "num_turns"] = strand_area * strands_in_hand
+        partials["copper_area", "strands_in_hand"] = strand_area * num_turns
+        partials["copper_area", "strand_radius"] = 2 * np.pi * strand_radius * strands_in_hand * num_turns
 
 class ThreePhaseCurrent(om.ExplicitComponent):
     """
@@ -158,13 +163,9 @@ class MotorCurrent(om.Group):
     """
 
     def initialize(self):
-        self.options.declare("num_turns", types=int, desc=" The number of turns of wire")
-        self.options.declare("num_strands", types=int, desc=" Number of strands in hand for litz wire")
         self.options.declare("theta_e", default=0.0, types=(float, list), desc=" Electrical angle")
 
     def setup(self):
-        num_turns = self.options["num_turns"]
-        num_strands = self.options["num_strands"]
         theta_e = self.options["theta_e"]
 
         self.add_subsystem("slot_area",
@@ -172,12 +173,12 @@ class MotorCurrent(om.Group):
                            promotes_inputs=["*"],
                            promotes_outputs=["slot_area"])
         self.add_subsystem("copper_area",
-                           CopperArea(num_turns=num_turns, num_strands=num_strands),
+                           CopperArea(),
                            promotes_inputs=["*"])
 
         self.add_subsystem("rms_current",
-                           om.ExecComp(f"rms_current = rms_current_density * strand_area * {num_strands}"),
-                           promotes_inputs=["rms_current_density"],
+                           om.ExecComp("rms_current = rms_current_density * strand_area * strands_in_hand"),
+                           promotes_inputs=["rms_current_density", "strands_in_hand"],
                            promotes_outputs=["rms_current"])
         self.connect("copper_area.strand_area", "rms_current.strand_area")
 
@@ -227,7 +228,7 @@ if __name__ == "__main__":
         def test_ref_motor_current(self):
             problem = om.Problem()
             problem.model.add_subsystem("current",
-                                        MotorCurrent(num_strands=42, num_turns=14),
+                                        MotorCurrent(),
                                         promotes_inputs=["*"],
                                         promotes_outputs=["slot_area",
                                                           "rms_current",
@@ -235,6 +236,8 @@ if __name__ == "__main__":
 
             problem.setup()
 
+            problem["strands_in_hand"] = 42
+            problem["num_turns"] = 14
             problem["num_slots"] = 24
             problem["stator_inner_radius"] = 0.06225
             problem["tooth_tip_thickness"] = 0.001
@@ -256,13 +259,15 @@ if __name__ == "__main__":
         def test_ref_motor_current_partials(self):
             problem = om.Problem()
             problem.model.add_subsystem("current",
-                                        MotorCurrent(num_strands=42, num_turns=14),
+                                        MotorCurrent(),
                                         promotes_inputs=["*"],
                                         promotes_outputs=["slot_area",
                                                           "rms_current",
                                                           "three_phase*.current_density:phase*"])
             problem.setup()
 
+            problem["strands_in_hand"] = 42
+            problem["num_turns"] = 14
             problem["num_slots"] = 24
             problem["stator_inner_radius"] = 0.06225
             problem["tooth_tip_thickness"] = 0.001
@@ -283,29 +288,3 @@ if __name__ == "__main__":
             assert_check_partials(data)
 
     unittest.main()
-
-    # problem = om.Problem()
-    # theta_e = [0.0, np.pi / 4, np.pi / 2]
-    # # theta_e = 0.0
-    # problem.model.add_subsystem("current", 
-    #                             MotorCurrent(num_strands=42, num_turns=14, num_slots=24, theta_e=theta_e),
-    #                             promotes_inputs=["*"],
-    #                             promotes_outputs=["slot_area", "rms_current"])
-    # problem.setup()
-
-    # # problem["stator_inner_radius"] = 0.06225
-    # # problem["tooth_tip_thickness"] = 0.001
-    # # problem["tooth_tip_angle"] = 10
-    # # problem["slot_depth"] = 0.01110
-    # # problem["slot_radius"] = 0.001
-    # # problem["tooth_width"] = 0.00430
-    # # problem["shoe_spacing"] = 0.0035
-    # # problem["strand_radius"] = 0.00016
-
-    # # problem["rms_current_density"] = 11e6
-    
-    # problem.run_model()
-
-    # # print(problem.get_val("current_density:phaseA"))
-    # # print(problem.get_val("current_density:phaseB"))
-    # # print(problem.get_val("current_density:phaseC"))

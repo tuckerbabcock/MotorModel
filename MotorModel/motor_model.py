@@ -1,13 +1,13 @@
 import openmdao.api as om
 import numpy as np
-# from mach import omEGADS, omMeshMove, MachSolver, omMachState, omMachFunctional
-from motor_em_builder import EMMotorBuilder
 from mphys import Multipoint
 from omESP import omESP
-from scenario_motor import ScenarioMotor
 
 from mach import PDESolver, MeshWarper, MachMeshWarper
-from motor_current import MotorCurrent
+
+from .scenario_motor import ScenarioMotor
+from .motor_em_builder import EMMotorBuilder
+from .motor_current import MotorCurrent
 
 def _buildSolverOptions(num_magnets_true, num_magnets, num_slots, rotations):
     mag_pitch = num_magnets // num_magnets_true
@@ -52,7 +52,7 @@ class Motor(Multipoint):
         check_partials=self.options["check_partials"]
 
         self.add_subsystem("geom",
-                           omESP(csm_file="model/motor2D.csm",
+                           omESP(csm_file="../model/motor2D.csm",
                                  egads_file="mesh_motor2D.egads"),
                            promotes_inputs=["*"],
                            promotes_outputs=[("x_surf", "x_em"), "model_depth", "num_slots"])

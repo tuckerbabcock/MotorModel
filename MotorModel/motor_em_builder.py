@@ -1,17 +1,15 @@
 import copy
-from re import M
-from clingo import SolveControl
-import numpy as np
+
 import openmdao.api as om
 from mphys import Builder
 
 from mach import PDESolver, MeshWarper
 from mach import MachState, MachMeshWarper, MachFunctional, MachMeshGroup
 
-from average_comp import AverageComp
-from maximum_fit import DiscreteInducedExponential
-from motor_current import MotorCurrent
-from dc_loss import DCLoss
+from .average_comp import AverageComp
+from .maximum_fit import DiscreteInducedExponential
+from .motor_current import MotorCurrent
+from .dc_loss import DCLoss
 
 class EMStateAndFluxMagGroup(om.Group):
     def initialize(self):
@@ -100,18 +98,13 @@ class EMMotorPrecouplingGroup(om.Group):
                            promotes_inputs=[("surf_mesh_coords", "x_em")],
                            promotes_outputs=[("vol_mesh_coords", "x_em_vol")])
 
-        num_turns = self.options["winding_options"]["num_turns"]
-        num_strands = self.options["winding_options"]["num_strands"]
-
         theta_e = []
         for solver in self.solvers:
             solver_options = solver.getOptions()
             theta_e.append(solver_options["theta_e"])
 
         self.add_subsystem(f"current",
-                           MotorCurrent(num_turns=num_turns,
-                                        num_strands=num_strands,
-                                        theta_e=theta_e),
+                           MotorCurrent(theta_e=theta_e),
                            promotes_inputs=["*"],
                            promotes_outputs=["rms_current",
                                              "current_density",
@@ -192,16 +185,6 @@ class EMMotorOutputsGroup(om.Group):
                                             ("state", "em_state0")],
                            promotes_outputs=["average_flux_magnitude"])
 
-        num_turns = self.options["winding_options"]["num_turns"]
-        strands_in_hand = self.options["winding_options"]["num_strands"]
-        self.add_subsystem("num_turns",
-                           om.ExecComp(f"num_turns = 2 * num_slots * {num_turns}"),
-                           promotes=["*"])
-
-        self.add_subsystem("strands_in_hand",
-                           om.ExecComp(f"strands_in_hand = {strands_in_hand}"),
-                           promotes=["*"])
-
         ac_loss_depends = ["mesh_coords",
                            "stack_length",
                            "frequency",
@@ -209,7 +192,8 @@ class EMMotorOutputsGroup(om.Group):
                            "strand_radius",
                            "model_depth",
                            "strands_in_hand",
-                           "num_turns"]
+                           "num_turns",
+                           "num_slots"]
 
         ac_loss_options = {
             "attributes": winding_attrs,
@@ -223,23 +207,12 @@ class EMMotorOutputsGroup(om.Group):
                            promotes_inputs=[("mesh_coords", "x_em_vol"), *ac_loss_depends[1:]],
                            promotes_outputs=["ac_loss"])
 
-        # dc_loss_depends = ["mesh_coords",
-        #                    "stack_length",
-        #                    "tooth_width",
-        #                    "tooth_tip_thickness",
-        #                    "stator_inner_radius",
-        #                    "slot_depth",
-        #                    "num_slots",
-        #                    "rms_current",
-        #                    "strand_radius",
-        #                    "num_strands_in_hand",
-        #                    "num_turns"]
-
         self.add_subsystem("dc_loss",
                            DCLoss(solver=self.solvers[0]),
                            promotes_inputs=["x_em_vol",
                                             "num_slots",
                                             "num_turns",
+                                            "num_slots",
                                             "stator_inner_radius",
                                             "tooth_tip_thickness",
                                             "slot_depth",

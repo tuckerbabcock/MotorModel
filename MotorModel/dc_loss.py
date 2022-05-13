@@ -55,14 +55,14 @@ class WireLength(om.ExplicitComponent):
         print(f"slot width: {slot_width}")
 
         # straight sections
-        turn_length = stack_length;
+        turn_length = 2 * stack_length;
         # top/bottom arc sections
-        turn_length += np.pi * ((tooth_width / 2) + (slot_width / 4));
+        turn_length += 2 * np.pi * ((tooth_width / 2) + (slot_width / 4));
 
         print(f"turn length: {turn_length}")
         # total number of turns on all slots
         # length = num_slots * (num_turns / (2*num_slots)) * turn_length 
-        length = num_turns * turn_length 
+        length = num_slots * num_turns * turn_length 
         # print(f"num slots: {num_slots}, num_turns: {num_turns}")
 
         # plus three 60 deg sections of wire connecting each group of teeth

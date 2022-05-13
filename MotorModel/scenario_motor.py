@@ -60,7 +60,9 @@ class ScenarioMotor(Scenario):
                                      "rms_current_density",
                                      "strand_radius",
                                      "current_density",
-                                     "rms_current"])
+                                     "rms_current",
+                                     "num_turns",
+                                     "strands_in_hand"])
 
         # promote all unconnected I/O from em_post
         self.promotes("em_post", any=["average_torque",
