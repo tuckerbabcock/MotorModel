@@ -37,7 +37,7 @@ class SlotArea(om.ExplicitComponent):
                        desc=" The arc length distance between the tips of the stator teeth")
         
         self.add_output("slot_area",
-                        desc="The area of a winding slot")
+                        desc=" The area of a winding slot")
 
     def setup_partials(self):
         self.declare_partials("*", "*", method="cs")
@@ -187,7 +187,8 @@ class MotorCurrent(om.Group):
 
         self.add_subsystem("current_density",
                            om.ExecComp("current_density = rms_current_density * power(2, 1./2) * fill_factor"),
-                           promotes_inputs=["rms_current_density"])
+                           promotes_inputs=["rms_current_density"],
+                           promotes_outputs=["current_density"])
         self.connect("fill_factor.fill_factor", "current_density.fill_factor")
 
         if isinstance(theta_e, list):
@@ -198,13 +199,12 @@ class MotorCurrent(om.Group):
                                           promotes_inputs=["current_density"])
 
             self.promotes("three_phase",
+                          inputs=["current_density"],
                           outputs=["three_phase*.current_density:phase*"])
         else:
             self.add_subsystem("three_phase",
-                               ThreePhaseCurrent(theta_e=theta_e))
-
-        self.connect("current_density.current_density",
-                     "three_phase.current_density")
+                               ThreePhaseCurrent(theta_e=theta_e),
+                               promotes_inputs=["current_density"])
 
 if __name__ == "__main__":
     import unittest

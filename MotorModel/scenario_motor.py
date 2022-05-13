@@ -46,7 +46,7 @@ class ScenarioMotor(Scenario):
             self.connect(f"em_pre.three_phase{idx}.current_density:phaseC",
                          f"solver{idx}.current_density:phaseC")
 
-        self.connect("em_pre.slot_area", "slot_area")
+        # self.connect("em_pre.slot_area", "slot_area")
 
         # promote all unconnected inputs from em_pre
         self.promotes("em_pre", any=["num_slots",
@@ -58,13 +58,24 @@ class ScenarioMotor(Scenario):
                                      "tooth_width",
                                      "shoe_spacing",
                                      "rms_current_density",
-                                     "strand_radius"])
+                                     "strand_radius",
+                                     "current_density",
+                                     "rms_current"])
 
         # promote all unconnected I/O from em_post
         self.promotes("em_post", any=["average_torque",
                                       "stator_core_loss",
                                       "stator_mass",
                                       "stator_volume",
-                                      "num_slots"])
+                                      "num_slots",
+                                      "dc_loss",
+                                      "efficiency",
+                                      "power_in",
+                                      "power_out",
+                                      "stator_inner_radius",
+                                      "tooth_tip_thickness",
+                                      "slot_depth",
+                                      "tooth_width",
+                                      "rpm"])
 
         Scenario.configure(self)

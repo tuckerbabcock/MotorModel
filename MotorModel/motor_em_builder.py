@@ -1,4 +1,5 @@
 import copy
+from re import M
 from clingo import SolveControl
 import numpy as np
 import openmdao.api as om
@@ -10,6 +11,7 @@ from mach import MachState, MachMeshWarper, MachFunctional, MachMeshGroup
 from average_comp import AverageComp
 from maximum_fit import DiscreteInducedExponential
 from motor_current import MotorCurrent
+from dc_loss import DCLoss
 
 class EMStateAndFluxMagGroup(om.Group):
     def initialize(self):
@@ -111,8 +113,8 @@ class EMMotorPrecouplingGroup(om.Group):
                                         num_strands=num_strands,
                                         theta_e=theta_e),
                            promotes_inputs=["*"],
-                           promotes_outputs=["slot_area",
-                                             "rms_current",
+                           promotes_outputs=["rms_current",
+                                             "current_density",
                                              "three_phase*.current_density:phase*"])
 
 class EMMotorOutputsGroup(om.Group):
@@ -190,23 +192,28 @@ class EMMotorOutputsGroup(om.Group):
                                             ("state", "em_state0")],
                            promotes_outputs=["average_flux_magnitude"])
 
+        num_turns = self.options["winding_options"]["num_turns"]
+        strands_in_hand = self.options["winding_options"]["num_strands"]
+        self.add_subsystem("num_turns",
+                           om.ExecComp(f"num_turns = 2 * num_slots * {num_turns}"),
+                           promotes=["*"])
+
+        self.add_subsystem("strands_in_hand",
+                           om.ExecComp(f"strands_in_hand = {strands_in_hand}"),
+                           promotes=["*"])
+
         ac_loss_depends = ["mesh_coords",
                            "stack_length",
-                           "slot_area",
                            "frequency",
                            "peak_flux",
                            "strand_radius",
                            "model_depth",
-                           "num_strands"]
+                           "strands_in_hand",
+                           "num_turns"]
 
-        num_turns = self.options["winding_options"]["num_turns"]
-        num_strands = self.options["winding_options"]["num_strands"]
         ac_loss_options = {
             "attributes": winding_attrs,
         }
-        self.add_subsystem("num_strands",
-                           om.ExecComp(f"num_strands = 2 * num_slots * {num_turns} * {num_strands}"),
-                           promotes=["*"])
 
         self.add_subsystem("ac_loss",
                            MachFunctional(solver=self.solvers[0],
@@ -215,6 +222,47 @@ class EMMotorOutputsGroup(om.Group):
                                           depends=ac_loss_depends),
                            promotes_inputs=[("mesh_coords", "x_em_vol"), *ac_loss_depends[1:]],
                            promotes_outputs=["ac_loss"])
+
+        # dc_loss_depends = ["mesh_coords",
+        #                    "stack_length",
+        #                    "tooth_width",
+        #                    "tooth_tip_thickness",
+        #                    "stator_inner_radius",
+        #                    "slot_depth",
+        #                    "num_slots",
+        #                    "rms_current",
+        #                    "strand_radius",
+        #                    "num_strands_in_hand",
+        #                    "num_turns"]
+
+        self.add_subsystem("dc_loss",
+                           DCLoss(solver=self.solvers[0]),
+                           promotes_inputs=["x_em_vol",
+                                            "num_slots",
+                                            "num_turns",
+                                            "stator_inner_radius",
+                                            "tooth_tip_thickness",
+                                            "slot_depth",
+                                            "tooth_width",
+                                            "stack_length",
+                                            "rms_current",
+                                            "strand_radius",
+                                            "strands_in_hand"],
+                           promotes_outputs=["*"])
+
+        # dc_loss.add_subsystem("slot_width",
+        #                       om.ExecComp("slot_width = np.pi * (2*stator_inner_radius + slot_depth + tooth_tip_thickness) / num_slots"),
+        #                       promotes=["*"])
+
+        # dc_loss.add_subsystem("turn_length",
+        #                       om.ExecComp("turn_length = (2 * stack_length + np.pi*((tooth_width / 2) + (slot_width / 4)))"))
+        # dc_loss.add_subsystem("wire_length",
+        #                       om.ExecComp("wire_length = num_turns * turn_length + "))
+        #                             # MachFunctional(solver=self.solvers[0],
+        #                             #                 func="dc_loss",
+        #                             #                 depends=dc_loss_depends),
+        #                             # promotes_inputs=[("mesh_coords", "x_em_vol"), *dc_loss_depends[1:]],
+        #                             # promotes_outputs=["dc_loss"])
 
         self.add_subsystem("winding_max_peak_flux",
                            MachFunctional(solver=self.solvers[0],
@@ -270,6 +318,19 @@ class EMMotorOutputsGroup(om.Group):
 
         self.add_subsystem("stator_volume",
                            om.ExecComp("stator_volume = stator_volume_raw * stack_length / model_depth"),
+                           promotes=["*"])
+
+        self.add_subsystem("total_loss",
+                           om.ExecComp("total_loss = ac_loss + dc_loss + stator_core_loss"),
+                           promotes=["*"])
+        self.add_subsystem("power_out",
+                           om.ExecComp("power_out = average_torque * rpm * pi / 30"),
+                           promotes=["*"])
+        self.add_subsystem("power_in",
+                           om.ExecComp("power_in = power_out + total_loss"),
+                           promotes=["*"])
+        self.add_subsystem("efficiency",
+                           om.ExecComp("efficiency = power_out / power_in"),
                            promotes=["*"])
 
 

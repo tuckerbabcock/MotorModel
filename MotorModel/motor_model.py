@@ -60,6 +60,15 @@ class Motor(Multipoint):
         self.add_subsystem("convert", om.ExecComp("stator_inner_radius = stator_id / 2"),
                             promotes=["*"])
 
+        num_magnets = winding_options["num_magnets"]
+        halbach = winding_options["halbach"]
+        num_poles = num_magnets
+        if halbach:
+            num_poles /= 2
+        self.add_subsystem("frequency",
+                           om.ExecComp(f"frequency = rpm * {num_poles} / 120"),
+                           promotes=["*"])
+
         em_motor_builder = EMMotorBuilder(solver_options=solver_options,
                                           warper_type="MeshWarper",
                                           warper_options=warper_options,
@@ -75,15 +84,18 @@ class Motor(Multipoint):
                       inputs=["*"], 
                       outputs=["average_torque",
                                "ac_loss",
+                               "dc_loss",
                                "stator_core_loss",
                                "stator_mass",
                                "max_flux_magnitude:stator",
                                "max_flux_magnitude:winding",
                                "stator_volume",
                                "average_flux_magnitude",
-                               "winding_max_peak_flux"
-                            #    "rotor_core_loss",
-                            #    "magnet_core_loss"
+                               "winding_max_peak_flux",
+                               "rms_current",
+                               "efficiency",
+                               "power_out",
+                               "power_in"
                                ])
 
 if __name__ == "__main__":
@@ -131,6 +143,7 @@ if __name__ == "__main__":
     num_slots = 24
     # rotations = [0, 1, 2, 3, 4, 5, 6, 7]
     rotations = [0, 2, 4, 6]
+    # rotations = [0]
     multipoint_opts = _buildSolverOptions(num_magnets_true,
                                           num_magnets,
                                           num_slots,
@@ -155,6 +168,7 @@ if __name__ == "__main__":
             "maxiter": 15,
             "reltol": 1e-4,
             "abstol": 1.1,
+            # "abstol": 1e10,
             "abort": False
         },
         "lin-solver": {
@@ -222,11 +236,14 @@ if __name__ == "__main__":
             "essential": "all"
         }
     }
-
     # winding config options
     winding_options = {
-        "num_turns": 12,
-        "num_strands": 42
+        "num_turns": 504,
+        "num_strands": 1,
+        # "num_turns": 12,
+        # "num_strands": 182,
+        "num_magnets": num_magnets_true,
+        "halbach": True
     }
 
     problem = om.Problem(name="motor", reports="n2")
@@ -258,7 +275,7 @@ if __name__ == "__main__":
     strand_radius = 0.00016
     problem.set_val("rms_current_density", strand_current_density)
     problem.set_val("strand_radius", strand_radius)
-    problem.set_val("frequency", 1000)
+    problem.set_val("rpm", 6000)
 
     # em_state0 = np.load("em_state0.npy")
     # em_state1 = np.load("em_state1.npy")
@@ -282,9 +299,13 @@ if __name__ == "__main__":
 
     problem.run_model()
 
+    print(f"Power out: {problem.get_val('power_out')}")
+    print(f"efficiency: {problem.get_val('efficiency')}")
     print(f"avg torque: {problem.get_val('average_torque')}")
     print(f"ac loss: {problem.get_val('ac_loss')}")
+    print(f"dc loss: {problem.get_val('dc_loss')}")
     print(f"rms current density: {problem.get_val('rms_current_density')}")
+    print(f"rms current: {problem.get_val('rms_current')}")
     print(f"stator core loss: {problem.get_val('stator_core_loss')}")
     print(f"stator max flux: {problem.get_val('max_flux_magnitude:stator')}")
     print(f"stator volume: {problem.get_val('stator_volume')}")
@@ -496,3 +517,32 @@ if __name__ == "__main__":
 # max val from peak flux: 2.8762057457521655
 #  EGADS Info: 0 Objects, 0 Reference in Use (of 40721) at Close!
 # python motor_model.py  3432.43s user 36.57s system 80% cpu 1:12:04.16 total
+
+
+# avg torque: [27.94331743]
+# ac loss: [1.98385664]
+# dc loss: [79.21991341]
+# rms current density: [11000000.]
+# rms current: [37.15624463]
+# stator core loss: [163.30834931]
+# stator max flux: [2.59540186]
+# stator volume: [0.00011714]
+# stator mass: [0.9500306]
+# airgap avg flux: [0.67756703]
+# winding max flux: [0.63314712]
+# winding peak max flux: [0.62939175]
+# max val from peak flux: 2.87620645483263
+
+# avg torque: [27.94331743]
+# ac loss: [1.98385664]
+# dc loss: [139.69827703]
+# rms current density: [11000000.]
+# rms current: [37.15624463]
+# stator core loss: [163.30834931]
+# stator max flux: [2.59540186]
+# stator volume: [0.00011714]
+# stator mass: [0.9500306]
+# airgap avg flux: [0.67756703]
+# winding max flux: [0.63314712]
+# winding peak max flux: [0.62939175]
+# max val from peak flux: 2.87620645483263
