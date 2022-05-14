@@ -43,17 +43,21 @@ class Motor(Multipoint):
         self.options.declare("solver_options", types=dict)
         self.options.declare("warper_options", types=dict)
         self.options.declare("winding_options", types=dict, desc=" Options for configuring MotorCurrent")
+        self.options.declare("esp_files", types=dict, desc=" Dictionary containing the ESP files")
         self.options.declare("check_partials", default=False)
 
     def setup(self):
         solver_options = self.options["solver_options"]
         warper_options = self.options["warper_options"]
         winding_options = self.options["winding_options"]
+        esp_files = self.options["esp_files"]
         check_partials=self.options["check_partials"]
 
+        csm_file = esp_files["csm_file"]
+        egads_file = esp_files["egads_file"]
         self.add_subsystem("geom",
-                           omESP(csm_file="../model/motor2D.csm",
-                                 egads_file="mesh_motor2D.egads"),
+                           omESP(csm_file=csm_file,
+                                 egads_file=egads_file),
                            promotes_inputs=["*"],
                            promotes_outputs=[("x_surf", "x_em"), "model_depth", "num_slots"])
 
