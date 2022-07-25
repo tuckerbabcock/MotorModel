@@ -1,0 +1,51 @@
+INTERFACE . ALL
+# Branches:
+set       shoe_spacing_angle shoe_spacing*360/pi(stator_id)
+set       shoe_angle 360/num_slots-shoe_spacing_angle
+
+box       0   -stator_id/2-tooth_tip_thickness   0   0   -slot_depth   0
+rotatez 360/num_slots/2
+revolve   0   0   0   0   0   1   -(360/num_slots/2-1)
+restore   half_tooth   0
+union
+extract 1
+select face
+   attribute capsGroup $winding
+   attribute capsMesh $winding
+   attribute AFLR_GBC   $STD_UG3_GBC
+   attribute .tParams 0.000375;0.5;15
+   #attribute .tParams 0.5;0.5;15
+   attribute _color $yellow
+   attribute _bcolor $yellow
+
+store winding
+
+restore   tooth   0
+
+select face 1
+   attribute capsGroup $tooth
+   attribute capsMesh $tooth
+   attribute AFLR_GBC   $STD_UG3_GBC
+   attribute .tParams 0.000375;0.5;15
+   #attribute .tParams 0.5;0.5;15
+   attribute _color $red
+   attribute _bcolor $red
+select face 2
+   attribute capsGroup $tooth
+   attribute capsMesh $tooth
+   attribute AFLR_GBC   $STD_UG3_GBC
+   attribute .tParams 0.000375;0.5;15
+   #attribute .tParams 0.5;0.5;15
+   attribute _color $red
+   attribute _bcolor $red
+
+restore   winding   0
+union 0 0 0
+restore   winding   0
+rotatey   180   0   0
+union 0 0 0
+  attribute _name $tooth_assembly
+
+IFTHEN DumpEgads EQ 1
+  dump tooth_assembly2D.egads
+ENDIF

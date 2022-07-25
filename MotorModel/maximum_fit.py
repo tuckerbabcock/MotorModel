@@ -2,7 +2,10 @@ import openmdao.api as om
 import numpy as np
 
 def discrete_induced_exponential(data, rho):
-    e_rho_f = np.exp(rho * data)
+    actual_max = np.amax(data)
+    # print("actual max:", actual_max)
+    e_rho_f = np.exp(rho * (data - actual_max))
+    # e_rho_f = np.exp(rho * data)
     numerator = np.sum(data * e_rho_f, axis=0)
     denominator = np.sum(e_rho_f, axis=0)
 
@@ -16,7 +19,10 @@ def discrete_induced_exponential_bar(data, rho, ie_bar=None):
         elif np.ndim(data) == 2:
             ie_bar = np.ones(data.shape[1])
 
-    e_rho_f = np.exp(rho * data)
+    actual_max = np.amax(data)
+    # print("actual max (bar):", actual_max)
+    e_rho_f = np.exp(rho * (data - actual_max))
+    # e_rho_f = np.exp(rho * data)
     numerator = np.sum(data * e_rho_f, axis=0)
     denominator = np.sum(e_rho_f, axis=0)
 

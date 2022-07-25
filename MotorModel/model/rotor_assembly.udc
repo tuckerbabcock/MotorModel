@@ -1,9 +1,47 @@
 INTERFACE . ALL
 # Branches:
-set       magnet_angle 360/num_magnets
-set       stator_yoke_thickness (stator_od/2)-((stator_id/2)+slot_depth)-tooth_tip_thickness
-set       shoe_spacing_angle shoe_spacing*360/pi(stator_id)
-set       shoe_angle 360/num_slots-shoe_spacing_angle
+
+#cylinder  0   0   -model_depth/2   0   0   model_depth/2   rotor_id/2
+#  attribute _color "0.142857;0.428571;0.428571"
+#  attribute _bcolor "0.142857;0.428571;0.428571"
+#cylinder  0   0   -model_depth/2   0   0   model_depth/2   rotor_id/2-shaft_thickness
+#  attribute _color "0.142857;0.428571;0.428571"
+#  attribute _bcolor "0.142857;0.428571;0.428571"
+#subtract  none   1   0
+#  attribute _name $shaft_solid
+#
+#store     shaft_solid   0   0
+#restore   shaft_solid   0
+#extract   0
+#  attribute _name $shaft_shell
+#select face 1
+#   attribute capsGroup $motor
+#   attribute capsMesh $motor
+#   attribute AFLR_GBC   $TRANSP_UG3_GBC
+#select face 3
+#   attribute capsGroup $motor
+#   attribute capsMesh $motor
+#   attribute AFLR_GBC   $TRANSP_UG3_GBC
+#select face 5
+#   attribute capsGroup $motor
+#   attribute capsMesh $motor
+#   attribute AFLR_GBC   $TRANSP_UG3_GBC
+#select face 6
+#   attribute capsGroup $motor
+#   attribute capsMesh $motor
+#   attribute AFLR_GBC   $TRANSP_UG3_GBC
+#select face 2
+#   attribute capsGroup $shaft
+#   attribute capsMesh $shaft
+#   attribute AFLR_GBC   $STD_UG3_GBC
+#   attribute .tParams 0.00075;0.5;15
+#select face 4
+#   attribute capsGroup $shaft
+#   attribute capsMesh $shaft
+#   attribute AFLR_GBC   $STD_UG3_GBC
+#   attribute .tParams 0.00075;0.5;15
+#
+#store     shaft_shell   0   0
 
 cylinder  0   0   -model_depth/2   0   0   model_depth/2   rotor_od/2
   attribute _color "0.142857;0.428571;0.428571"
@@ -38,18 +76,23 @@ select face 2
    attribute capsGroup $rotor
    attribute capsMesh $rotor
    attribute AFLR_GBC   $STD_UG3_GBC
-   attribute .tParams 0.002;0.5;15
+   attribute .tParams 0.000625;0.5;15
 select face 4
    attribute capsGroup $rotor
    attribute capsMesh $rotor
    attribute AFLR_GBC   $STD_UG3_GBC
-   attribute .tParams 0.002;0.5;15
+   attribute .tParams 0.000625;0.5;15
+
+#restore   shaft_shell   0
+#union #with shaft_shell
 
 store     rotor_yoke_shell   0   0
 
-udparg    radwaf    ysize     1.1*(rotor_od+magnet_thickness)
-udparg    radwaf    zsize     1.1*(rotor_od+magnet_thickness)
-udparg    radwaf    nspoke    num_magnets
+#udparg    radwaf    ysize     1.5*(rotor_od+magnet_thickness)
+#udparg    radwaf    zsize     1.5*(rotor_od+magnet_thickness)
+udparg    radwaf    ysize     1.5*(stator_id)
+udparg    radwaf    zsize     1.5*(stator_id)
+udparg    radwaf    nspoke    num_magnets*magnet_divisions
 udprim    radwaf    xframe    "0;model_depth"
   rotatey 90 0 0
   translate 0 0 model_depth/2
@@ -88,12 +131,12 @@ select face 2
    attribute capsGroup $magnets
    attribute capsMesh $magnets
    attribute AFLR_GBC   $STD_UG3_GBC
-   attribute .tParams 0.001;0.5;15
+   attribute .tParams 0.0005;0.5;15
 select face 4
    attribute capsGroup $magnets
    attribute capsMesh $magnets
    attribute AFLR_GBC   $STD_UG3_GBC
-   attribute .tParams 0.001;0.5;15
+   attribute .tParams 0.0005;0.5;15
 store magnet_solid
 
 restore radwaf

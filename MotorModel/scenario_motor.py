@@ -1,4 +1,6 @@
+import openmdao.api as om
 from mphys.scenario import Scenario
+from mphys.coupling_group import CouplingGroup
 
 class ScenarioMotor(Scenario):
     def initialize(self):
@@ -18,6 +20,7 @@ class ScenarioMotor(Scenario):
 
     def setup(self):
         em_motor_builder = self.options["em_motor_builder"]
+        thermal_builder = self.options["thermal_builder"]
         # geometry_builder = self.options["geometry_builder"]
 
         # if self.options["in_MultipointParallel"]:
@@ -32,8 +35,31 @@ class ScenarioMotor(Scenario):
         #         self.mphys_add_subsystem("mesh",em_motor_builder.get_mesh_coordinate_subsystem(self.name))
 
         self.mphys_add_pre_coupling_subsystem("em", em_motor_builder, self.name)
-        self.mphys_add_subsystem("em_coupling", em_motor_builder.get_coupling_group_subsystem(self.name))
+        if thermal_builder is not None:
+            self.mphys_add_pre_coupling_subsystem("thermal", thermal_builder, self.name)
+
+        coupling_group = CouplingGroup()
+        em = em_motor_builder.get_coupling_group_subsystem(self.name)
+        coupling_group.mphys_add_subsystem("em", em)
+
+        if thermal_builder is not None:
+            thermal = thermal_builder.get_coupling_group_subsystem(self.name)
+            coupling_group.mphys_add_subsystem("thermal", thermal)
+
+        coupling_group.nonlinear_solver = om.NonlinearRunOnce()
+        coupling_group.linear_solver = om.LinearRunOnce()
+        # coupling_group.nonlinear_solver = om.NonlinearBlockGS(maxiter=25, iprint=2,
+        #                                                       atol=1e-8, rtol=1e-8,
+        #                                                       use_aitken=True)
+        # coupling_group.linear_solver = om.LinearBlockGS(maxiter=25, iprint=2,
+        #                                                 atol=1e-8, rtol=1e-8,
+        #                                                 use_aitken=True)
+
+        self.mphys_add_subsystem('coupling', coupling_group)
+
         self.mphys_add_post_coupling_subsystem("em", em_motor_builder, self.name)
+        if thermal_builder is not None:
+            self.mphys_add_post_coupling_subsystem("thermal", thermal_builder, self.name)
 
     def configure(self):
         # connect current densities from pre-coupling to coupling
@@ -65,19 +91,21 @@ class ScenarioMotor(Scenario):
                                      "strands_in_hand"])
 
         # promote all unconnected I/O from em_post
-        self.promotes("em_post", any=["average_torque",
-                                      "stator_core_loss",
-                                      "stator_mass",
-                                      "stator_volume",
-                                      "num_slots",
-                                      "dc_loss",
-                                      "efficiency",
-                                      "power_in",
-                                      "power_out",
-                                      "stator_inner_radius",
-                                      "tooth_tip_thickness",
-                                      "slot_depth",
-                                      "tooth_width",
-                                      "rpm"])
+        self.promotes("em_post", any=[
+                                      "average_torque",
+        #                               "stator_core_loss",
+        #                               "stator_mass",
+        #                               "stator_volume",
+        #                               "num_slots",
+        #                               "dc_loss",
+        #                               "efficiency",
+        #                               "power_in",
+        #                               "power_out",
+        #                               "stator_inner_radius",
+        #                               "tooth_tip_thickness",
+        #                               "slot_depth",
+        #                               "tooth_width",
+        #                               "rpm"
+                                     ])
 
         Scenario.configure(self)

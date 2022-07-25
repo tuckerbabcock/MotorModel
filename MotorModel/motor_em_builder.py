@@ -9,7 +9,7 @@ from mach import MachState, MachMeshWarper, MachFunctional, MachMeshGroup
 from .average_comp import AverageComp
 from .maximum_fit import DiscreteInducedExponential
 from .motor_current import MotorCurrent
-from .dc_loss import DCLoss
+from .dc_loss import WireLength, DCLoss
 
 class EMStateAndFluxMagGroup(om.Group):
     def initialize(self):
@@ -44,6 +44,7 @@ class EMMotorCouplingGroup(om.Group):
     def initialize(self):
         self.options.declare("solvers", types=list, recordable=False)
         self.options.declare("state_depends", types=list)
+        self.options.declare("coupled", default=False)
         self.options.declare("check_partials", default=False)
         self.options.declare("scenario_name", default=None)
 
@@ -73,7 +74,49 @@ class EMMotorCouplingGroup(om.Group):
         for idx, _ in enumerate(self.solvers):
             self.connect(f"em_states.solver{idx}.flux_magnitude", f"peak_flux.data{idx}")
 
-        # If coupling to thermal solver, compute heat flux from `peak_flux` ...
+        coupled = self.options["coupled"]
+        # If coupling to thermal solver, compute heat sources...
+        if coupled == "thermal":
+
+            self.add_subsystem("stator_max_flux_magnitude",
+                           MachFunctional(solver=self.solvers[0],
+                                          func="max_flux_magnitude:stator",
+                                          func_options={"rho": 50, "attributes": [1]},
+                                          depends=["state", "mesh_coords"]),
+                           promotes_inputs=[("mesh_coords", "x_em_vol"),
+                                            ("state", "em_state0")],
+                           promotes_outputs=["max_flux_magnitude:stator"])
+
+            self.add_subsystem("wire_length",
+                               WireLength(),
+                               promotes_inputs=["*"],
+                               promotes_outputs=["wire_length"])
+
+            heat_source_inputs = [("mesh_coords", "x_em_vol"),
+                                  "frequency",
+                                  "max_flux_magnitude:stator",
+                                  "wire_length",
+                                  "rms_current",
+                                  "strand_radius",
+                                  "strands_in_hand",
+                                  "stack_length",
+                                  "peak_flux",
+                                  "model_depth",
+                                  "num_turns",
+                                  "num_slots"]
+            self.add_subsystem("heat_source",
+                               MachFunctional(solver=self.solvers[0],
+                                              func="heat_source",
+                                              func_options={"space-dis": {
+                                                                "basis-type": "h1",
+                                                                "degree": 1
+                                                            }},
+                                              depends=heat_source_inputs),
+                               promotes_inputs=heat_source_inputs,
+                               promotes_outputs=[("heat_source", "thermal_load")])
+
+        elif coupled is not None:
+            raise ValueError("EM Motor builder only supports coupling with a thermal solver")
 
 class EMMotorPrecouplingGroup(om.Group):
     """
@@ -84,19 +127,18 @@ class EMMotorPrecouplingGroup(om.Group):
     """
     def initialize(self):
         self.options.declare("solvers", types=list, recordable=False)
-        self.options.declare("warper", types=MeshWarper, recordable=False)
-        self.options.declare("winding_options", types=dict, desc=" Options for configuring MotorCurrent")
+        # self.options.declare("warper", types=MeshWarper, recordable=False)
         self.options.declare("scenario_name", default=None)
 
     def setup(self):
         self.solvers = self.options["solvers"]
-        self.warper = self.options["warper"]
+        # self.warper = self.options["warper"]
 
-        # Promote variables with physics-specific tag that MPhys expects
-        self.add_subsystem("mesh_warper",
-                           MachMeshWarper(warper=self.warper),
-                           promotes_inputs=[("surf_mesh_coords", "x_em")],
-                           promotes_outputs=[("vol_mesh_coords", "x_em_vol")])
+        # # Promote variables with physics-specific tag that MPhys expects
+        # self.add_subsystem("mesh_warper",
+        #                    MachMeshWarper(warper=self.warper),
+        #                    promotes_inputs=[("surf_mesh_coords", "x_em")],
+        #                    promotes_outputs=[("vol_mesh_coords", "x_em_vol")])
 
         theta_e = []
         for solver in self.solvers:
@@ -116,7 +158,7 @@ class EMMotorOutputsGroup(om.Group):
     """
     def initialize(self):
         self.options.declare("solvers", types=list, recordable=False)
-        self.options.declare("winding_options", types=dict, desc=" Options for winding configuration")
+        self.options.declare("coupled", default=False)
         self.options.declare("check_partials", default=False)
         self.options.declare("scenario_name", default=None)
 
@@ -128,12 +170,14 @@ class EMMotorOutputsGroup(om.Group):
         torque = self.add_subsystem("torque", om.Group())
         for idx, solver in enumerate(self.solvers):
 
-            rotor_attrs = solver.getOptions()["components"]["rotor"]["attr"]
+            rotor_attrs = solver.getOptions()["components"]["rotor"]["attrs"]
             magnet_attrs = solver.getOptions()["components"]["magnets"]["attrs"]
+            airgap_attrs = solver.getOptions()["components"]["airgap"]["attrs"]
             torque_opts = {
-                "attributes": [rotor_attrs, *magnet_attrs],
+                "attributes": [*rotor_attrs, *magnet_attrs],
                 "axis": [0.0, 0.0, 1.0],
-                "about": [0.0, 0.0, 0.0]
+                "about": [0.0, 0.0, 0.0],
+                "air_attributes": airgap_attrs
             }
 
             torque.add_subsystem(f"torque{idx}",
@@ -157,33 +201,38 @@ class EMMotorOutputsGroup(om.Group):
                            om.ExecComp("average_torque = raw_average_torque * stack_length / model_depth"),
                            promotes=["*"])
 
-        self.add_subsystem("stator_max_flux_magnitude",
-                           MachFunctional(solver=self.solvers[0],
-                                          func="max_flux_magnitude:stator",
-                                          func_options={"rho": 10, "attributes": [1]},
-                                          depends=["state", "mesh_coords"]),
-                           promotes_inputs=[("mesh_coords", "x_em_vol"),
-                                            ("state", "em_state0")],
-                           promotes_outputs=["max_flux_magnitude:stator"])
+        # coupled = self.options["coupled"]
+        # # If not coupling to thermal solver, compute stator max flux here post coupling
+        # if coupled != "thermal":
+        #     stator_attrs = self.solvers[0].getOptions()["components"]["stator"]["attrs"]
+        #     self.add_subsystem("stator_max_flux_magnitude",
+        #                     MachFunctional(solver=self.solvers[0],
+        #                                     func="max_flux_magnitude:stator",
+        #                                     func_options={"rho": 50, "attributes": stator_attrs},
+        #                                     depends=["state", "mesh_coords"]),
+        #                     promotes_inputs=[("mesh_coords", "x_em_vol"),
+        #                                         ("state", "em_state0")],
+        #                     promotes_outputs=["max_flux_magnitude:stator"])
 
-        winding_attrs = self.solvers[0].getOptions()["components"]["windings"]["attrs"]
-        self.add_subsystem("winding_max_flux_magnitude",
-                           MachFunctional(solver=self.solvers[0],
-                                          func="max_flux_magnitude:winding",
-                                          func_options={"rho": 100, "attributes": winding_attrs},
-                                          depends=["state", "mesh_coords"]),
-                           promotes_inputs=[("mesh_coords", "x_em_vol"),
-                                            ("state", "em_state0")],
-                           promotes_outputs=["max_flux_magnitude:winding"])
+        # # winding_attrs = self.solvers[0].getOptions()["components"]["windings"]["attrs"]
+        # # self.add_subsystem("winding_max_flux_magnitude",
+        # #                    MachFunctional(solver=self.solvers[0],
+        # #                                   func="max_flux_magnitude:winding",
+        # #                                   func_options={"rho": 50, "attributes": winding_attrs},
+        # #                                   depends=["state", "mesh_coords"]),
+        # #                    promotes_inputs=[("mesh_coords", "x_em_vol"),
+        # #                                     ("state", "em_state0")],
+        # #                    promotes_outputs=["max_flux_magnitude:winding"])
 
-        self.add_subsystem("average_flux_magnitude",
-                           MachFunctional(solver=self.solvers[0],
-                                          func="average_flux_magnitude",
-                                          func_options={"attributes": [3]},
-                                          depends=["state", "mesh_coords"]),
-                           promotes_inputs=[("mesh_coords", "x_em_vol"),
-                                            ("state", "em_state0")],
-                           promotes_outputs=["average_flux_magnitude"])
+        # airgap_attrs = self.solvers[0].getOptions()["components"]["airgap"]["attrs"]
+        # self.add_subsystem("airgap_average_flux_magnitude",
+        #                    MachFunctional(solver=self.solvers[0],
+        #                                   func="average_flux_magnitude:airgap",
+        #                                   func_options={"attributes": airgap_attrs},
+        #                                   depends=["state", "mesh_coords"]),
+        #                    promotes_inputs=[("mesh_coords", "x_em_vol"),
+        #                                     ("state", "em_state0")],
+        #                    promotes_outputs=["average_flux_magnitude:airgap"])
 
         ac_loss_depends = ["mesh_coords",
                            "stack_length",
@@ -195,14 +244,11 @@ class EMMotorOutputsGroup(om.Group):
                            "num_turns",
                            "num_slots"]
 
-        ac_loss_options = {
-            "attributes": winding_attrs,
-        }
-
+        winding_attrs = self.solvers[0].getOptions()["components"]["windings"]["attrs"]
         self.add_subsystem("ac_loss",
                            MachFunctional(solver=self.solvers[0],
                                           func="ac_loss",
-                                          func_options=ac_loss_options,
+                                          func_options={"attributes": winding_attrs},
                                           depends=ac_loss_depends),
                            promotes_inputs=[("mesh_coords", "x_em_vol"), *ac_loss_depends[1:]],
                            promotes_outputs=["ac_loss"])
@@ -223,92 +269,79 @@ class EMMotorOutputsGroup(om.Group):
                                             "strands_in_hand"],
                            promotes_outputs=["*"])
 
-        # dc_loss.add_subsystem("slot_width",
-        #                       om.ExecComp("slot_width = np.pi * (2*stator_inner_radius + slot_depth + tooth_tip_thickness) / num_slots"),
-        #                       promotes=["*"])
 
-        # dc_loss.add_subsystem("turn_length",
-        #                       om.ExecComp("turn_length = (2 * stack_length + np.pi*((tooth_width / 2) + (slot_width / 4)))"))
-        # dc_loss.add_subsystem("wire_length",
-        #                       om.ExecComp("wire_length = num_turns * turn_length + "))
-        #                             # MachFunctional(solver=self.solvers[0],
-        #                             #                 func="dc_loss",
-        #                             #                 depends=dc_loss_depends),
-        #                             # promotes_inputs=[("mesh_coords", "x_em_vol"), *dc_loss_depends[1:]],
-        #                             # promotes_outputs=["dc_loss"])
+        # self.add_subsystem("winding_max_peak_flux",
+        #                    MachFunctional(solver=self.solvers[0],
+        #                                   func="max_state",
+        #                                   func_options={
+        #                                       "rho": 50,
+        #                                       "attributes": winding_attrs,
+        #                                       "state": "flux_magnitude"
+        #                                   },
+        #                                   depends=["mesh_coords", "state"]),
+        #                    promotes_inputs=[("mesh_coords", "x_em_vol"),
+        #                                     ("state", "peak_flux")],
+        #                    promotes_outputs=[("max_state", "winding_max_peak_flux")])
 
-        self.add_subsystem("winding_max_peak_flux",
-                           MachFunctional(solver=self.solvers[0],
-                                          func="max_state",
-                                          func_options={
-                                              "rho": 100,
-                                              "attributes": winding_attrs,
-                                              "state": "flux_magnitude"
-                                          },
-                                          depends=["mesh_coords", "state"]),
-                           promotes_inputs=[("mesh_coords", "x_em_vol"),
-                                            ("state", "peak_flux")],
-                           promotes_outputs=[("max_state", "winding_max_peak_flux")])
+        # core_loss_depends = ["mesh_coords",
+        #                      "frequency",
+        #                      "max_flux_magnitude:stator"]
 
-        core_loss_depends = ["mesh_coords",
-                             "frequency",
-                             "peak_flux"]
+        # stator_core_loss_options = {
+        #     "attributes": self.solvers[0].getOptions()["components"]["stator"]["attrs"]
+        # }
+        # self.add_subsystem("stator_core_loss_raw",
+        #                    MachFunctional(solver=self.solvers[0],
+        #                                   func="core_loss",
+        #                                   func_options=stator_core_loss_options,
+        #                                   depends=core_loss_depends),
+        #                    promotes_inputs=[("mesh_coords", "x_em_vol"), *core_loss_depends[1:]],
+        #                    promotes_outputs=[("core_loss", "stator_core_loss_raw")])
 
-        stator_core_loss_options = {
-            "attributes": [self.solvers[0].getOptions()["components"]["stator"]["attr"]]
-        }
-        self.add_subsystem("stator_core_loss_raw",
-                           MachFunctional(solver=self.solvers[0],
-                                          func="core_loss",
-                                          func_options=stator_core_loss_options,
-                                          depends=core_loss_depends),
-                           promotes_inputs=[("mesh_coords", "x_em_vol"), *core_loss_depends[1:]],
-                           promotes_outputs=[("core_loss", "stator_core_loss_raw")])
+        # self.add_subsystem("stator_core_loss",
+        #                    om.ExecComp("stator_core_loss = stator_core_loss_raw * stack_length / model_depth"),
+        #                    promotes=["*"])
 
-        self.add_subsystem("stator_core_loss",
-                           om.ExecComp("stator_core_loss = stator_core_loss_raw * stack_length / model_depth"),
-                           promotes=["*"])
+        # self.add_subsystem("stator_mass_raw",
+        #                    MachFunctional(solver=self.solvers[0],
+        #                                   func="mass:stator",
+        #                                   func_options=stator_core_loss_options,
+        #                                   depends=["mesh_coords"]),
+        #                    promotes_inputs=[("mesh_coords", "x_em_vol")],
+        #                    promotes_outputs=[("mass:stator", "stator_mass_raw")])
 
-        self.add_subsystem("stator_mass_raw",
-                           MachFunctional(solver=self.solvers[0],
-                                          func="mass:stator",
-                                          func_options=stator_core_loss_options,
-                                          depends=["mesh_coords"]),
-                           promotes_inputs=[("mesh_coords", "x_em_vol")],
-                           promotes_outputs=[("mass:stator", "stator_mass_raw")])
+        # self.add_subsystem("stator_mass",
+        #                    om.ExecComp("stator_mass = stator_mass_raw * stack_length / model_depth"),
+        #                    promotes=["*"])
 
-        self.add_subsystem("stator_mass",
-                           om.ExecComp("stator_mass = stator_mass_raw * stack_length / model_depth"),
-                           promotes=["*"])
+        # self.add_subsystem("stator_volume_raw",
+        #                    MachFunctional(solver=self.solvers[0],
+        #                                   func="volume:stator",
+        #                                   func_options=stator_core_loss_options,
+        #                                   depends=["mesh_coords"]),
+        #                    promotes_inputs=[("mesh_coords", "x_em_vol")],
+        #                    promotes_outputs=[("volume:stator", "stator_volume_raw")])
 
-        self.add_subsystem("stator_volume_raw",
-                           MachFunctional(solver=self.solvers[0],
-                                          func="volume:stator",
-                                          func_options=stator_core_loss_options,
-                                          depends=["mesh_coords"]),
-                           promotes_inputs=[("mesh_coords", "x_em_vol")],
-                           promotes_outputs=[("volume:stator", "stator_volume_raw")])
+        # self.add_subsystem("stator_volume",
+        #                    om.ExecComp("stator_volume = stator_volume_raw * stack_length / model_depth"),
+        #                    promotes=["*"])
 
-        self.add_subsystem("stator_volume",
-                           om.ExecComp("stator_volume = stator_volume_raw * stack_length / model_depth"),
-                           promotes=["*"])
-
-        self.add_subsystem("total_loss",
-                           om.ExecComp("total_loss = ac_loss + dc_loss + stator_core_loss"),
-                           promotes=["*"])
-        self.add_subsystem("power_out",
-                           om.ExecComp("power_out = average_torque * rpm * pi / 30"),
-                           promotes=["*"])
-        self.add_subsystem("power_in",
-                           om.ExecComp("power_in = power_out + total_loss"),
-                           promotes=["*"])
-        self.add_subsystem("efficiency",
-                           om.ExecComp("efficiency = power_out / power_in"),
-                           promotes=["*"])
-
+        # self.add_subsystem("total_loss",
+        #                    om.ExecComp("total_loss = ac_loss + dc_loss + stator_core_loss"),
+        #                    promotes=["*"])
+        # self.add_subsystem("power_out",
+        #                    om.ExecComp("power_out = average_torque * rpm * pi / 30"),
+        #                    promotes=["*"])
+        # self.add_subsystem("power_in",
+        #                    om.ExecComp("power_in = power_out + total_loss"),
+        #                    promotes=["*"])
+        # self.add_subsystem("efficiency",
+        #                    om.ExecComp("efficiency = power_out / power_in"),
+        #                    promotes=["*"])
+        ###### uncomment here
 
         # rotor_core_loss_options = {
-        #     "attributes": [self.solvers[0].getOptions()["components"]["rotor"]["attr"]]
+        #     "attributes": self.solvers[0].getOptions()["components"]["rotor"]["attrs"]
         # }
         # self.add_subsystem("rotor_core_loss",
         #                    MachFunctional(solver=self.solvers[0],
@@ -334,12 +367,12 @@ class EMMotorBuilder(Builder):
                  solver_options,
                  warper_type,
                  warper_options,
-                 winding_options,
+                 coupled=None,
                  check_partials=False):
         self.solver_options = copy.deepcopy(solver_options)
         self.warper_type = copy.deepcopy(warper_type)
         self.warper_options = copy.deepcopy(warper_options)
-        self.winding_options = copy.deepcopy(winding_options)
+        self.coupled = coupled
         self.check_partials = check_partials
     
     def initialize(self, comm):
@@ -355,9 +388,10 @@ class EMMotorBuilder(Builder):
                                           solver_options=solver_options,
                                           comm=comm))
 
-        if (self.warper_type != "idwarp"):
-            self.warper = MeshWarper(warper_options=self.warper_options,
-                                     comm=comm)
+        # if (self.warper_type != "idwarp"):
+        #     self.warper = MeshWarper(warper_options=self.warper_options,
+        #                              comm=comm)
+        self.warper = None
 
         self.state_depends = ["mesh_coords",
                               "current_density:phaseA",
@@ -367,6 +401,7 @@ class EMMotorBuilder(Builder):
     def get_coupling_group_subsystem(self, scenario_name=None):
         return EMMotorCouplingGroup(solvers=self.solvers,
                                     state_depends=self.state_depends,
+                                    coupled=self.coupled,
                                     check_partials=self.check_partials,
                                     scenario_name=scenario_name)
 
@@ -377,13 +412,13 @@ class EMMotorBuilder(Builder):
 
     def get_pre_coupling_subsystem(self, scenario_name=None):
         return EMMotorPrecouplingGroup(solvers=self.solvers,
-                                       warper=self.warper,
-                                       winding_options=self.winding_options,
+                                    #    warper=self.warper,
                                        scenario_name=scenario_name)
 
     def get_post_coupling_subsystem(self, scenario_name=None):
+        # return None
         return EMMotorOutputsGroup(solvers=self.solvers,
-                                   winding_options=self.winding_options,
+                                   coupled=self.coupled,
                                    check_partials=self.check_partials,
                                    scenario_name=scenario_name)
 

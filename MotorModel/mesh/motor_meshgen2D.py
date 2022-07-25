@@ -3,7 +3,7 @@ import math
 
 # Initialize capsProblem object
 project_name = "mesh_motor2D"
-csm_file = "model/motor2D.csm"
+csm_file = "../model/motor2D.csm"
 myProblem = pyCAPS.Problem(problemName=project_name,
                            capsFile=csm_file) 
 
@@ -60,13 +60,15 @@ rotor_id = geom.despmtr["rotor_id"].value
 slot_depth = geom.despmtr["slot_depth"].value
 tooth_width = geom.despmtr["tooth_width"].value
 magnet_thickness = geom.despmtr["magnet_thickness"].value
-heatsink_od = geom.despmtr["heatsink_od"].value
 tooth_tip_thickness = geom.despmtr["tooth_tip_thickness"].value
 tooth_tip_angle = geom.despmtr["tooth_tip_angle"].value
 slot_radius = geom.despmtr["slot_radius"].value
 
+heatsink_thickness = geom.cfgpmtr["heatsink_thickness"].value
+shaft_thickness = geom.cfgpmtr["shaft_thickness"].value
+
 num_slots = int(geom.cfgpmtr["num_slots"].value)
-num_magnets = int(geom.conpmtr["num_magnets"].value)
+num_magnets = int(geom.conpmtr["num_magnets"].value) * int(geom.conpmtr["magnet_divisions"].value)
 mag_angle = 360.0 / num_magnets
 rotor_rotation = geom.conpmtr["rotor_rotation"].value
 
@@ -75,7 +77,9 @@ regions = {
     "stator": {"id": 1, "seed": [(stator_od+3*stator_id)/8,  0.0, 0.0]},
     "rotor": {"id": 2, "seed": [(rotor_od+3*rotor_id)/8, 0.0, 0.0]},
     "airgap": {"id": 3, "seed": [(stator_id+6*(rotor_od/2+magnet_thickness))/8, 0.0, 0.0]},
-    "interior": {"id": 4, "seed": [0.0, 0.0, 0.0]}
+    # "airecore": {"id": 4, "seed": [0.0, 0.0, 0.0]}
+    # "shaft": {"id": 4, "seed": [rotor_id/2 - shaft_thickness/2, 0.0, 0.0]},
+    # "heatsink": {"id": 5, "seed": [stator_od/2 + heatsink_thickness/2, 0.0, 0.0]}
 }
 
 print("Regions:", regions)
@@ -109,6 +113,7 @@ for i in range(1,num_magnets+1):
                             "seed": [x, y, 0.0]}
 
 volume_mesh.input.Regions = regions
+volume_mesh.input.Preserve_Surf_Mesh = True
 
 # Generate the volume mesh
 volume_mesh.runAnalysis()

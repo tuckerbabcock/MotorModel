@@ -25,12 +25,12 @@ select face 2
    attribute capsGroup $air_gap
    attribute capsMesh $air_gap
    attribute AFLR_GBC   $STD_UG3_GBC
-   attribute .tParams 0.0005;0.5;15
+   attribute .tParams 0.0004375;0.5;15
 select face 4
    attribute capsGroup $air_gap
    attribute capsMesh $air_gap
    attribute AFLR_GBC   $STD_UG3_GBC
-   attribute .tParams 0.0005;0.5;15
+   attribute .tParams 0.0004375;0.5;15
 
 restore stator_assembly_shell
 union 0  0  0

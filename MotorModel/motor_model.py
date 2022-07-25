@@ -1,65 +1,82 @@
-import openmdao.api as om
+import os
+from pathlib import Path
+
 import numpy as np
+
+import openmdao.api as om
 from mphys import Multipoint
 from omESP import omESP
 
-from mach import PDESolver, MeshWarper, MachMeshWarper
+from mach import MachBuilder
 
 from .scenario_motor import ScenarioMotor
 from .motor_em_builder import EMMotorBuilder
-from .motor_current import MotorCurrent
+from .motor_options import _buildSolverOptions
 
-def _buildSolverOptions(num_magnets_true, num_magnets, num_slots, rotations):
-    mag_pitch = num_magnets // num_magnets_true
-    multipoint_opts = []
-    for rotation in rotations:
+# _mesh_file = "mesh_motor2D.smb"
+# _egads_file = "mesh_motor2D.egads"
+# _csm_file = "motor2D.csm"
 
-        theta_m = rotation / num_magnets * (2*np.pi)
-        # divided by 4 since magnetis are in a hallbach array, takes 4 magnets to get 2 poles
-        theta_e = (num_magnets_true/2) * theta_m / 2;
-
-        magnets = [5+2*num_slots + (rotation+i)%num_magnets for i in range(0, num_magnets)]
-        south = [num for subl in [magnets[i*mag_pitch:(i+1)*mag_pitch][:] for i in range(0, num_magnets_true, 4)] for num in subl]
-        cw = [num for subl in [magnets[i*mag_pitch:(i+1)*mag_pitch][:] for i in range(1, num_magnets_true, 4)] for num in subl]
-        north = [num for subl in [magnets[i*mag_pitch:(i+1)*mag_pitch][:] for i in range(2, num_magnets_true, 4)] for num in subl]
-        ccw = [num for subl in [magnets[i*mag_pitch:(i+1)*mag_pitch][:] for i in range(3, num_magnets_true, 4)] for num in subl]
-
-        multipoint_opts.append({
-            "magnets": {
-                "Nd2Fe14B" : {
-                    "north": north,
-                    "cw": cw,
-                    "south": south,
-                    "ccw": ccw
-                }
-            },
-            "theta_e": theta_e
-        })
-
-    return multipoint_opts
+_mesh_file = "mesh_motor2D_true.smb"
+_egads_file = "mesh_motor2D_true.egads"
+_csm_file = "motor2D_true.csm"
 
 class Motor(Multipoint): 
-    def initialize(self): 
-        self.options.declare("solver_options", types=dict)
-        self.options.declare("warper_options", types=dict)
+    def initialize(self):
+        self.options.declare("coupled", default=None)
+        self.options.declare("em_options", types=dict, default=None)
+        self.options.declare("thermal_options", types=dict, default=None)
+        self.options.declare("warper_options", types=dict, default=None)
         self.options.declare("winding_options", types=dict, desc=" Options for configuring MotorCurrent")
-        self.options.declare("esp_files", types=dict, desc=" Dictionary containing the ESP files")
+        self.options.declare("esp_files", types=dict, default=None, desc=" Dictionary containing the ESP files")
+        self.options.declare("two_dimensional", types=bool, default=True, desc=" Use a two dimensional FEA model")
         self.options.declare("check_partials", default=False)
 
     def setup(self):
-        solver_options = self.options["solver_options"]
-        warper_options = self.options["warper_options"]
+
+        # mesh_path = os.path.abspath(f"mesh/{_mesh_file}")
+        # egads_path = os.path.abspath(f"mesh/{_egads_file}")
+        # csm_path = os.path.abspath(f"model/{_csm_file}")
+
+        mesh_path = Path(__file__).parent / "mesh" / _mesh_file
+        egads_path = Path(__file__).parent / "mesh" / _egads_file
+        csm_path = Path(__file__).parent / "model" / _csm_file
+
+        # num_magnets_true = 40
+        # num_magnets = 80
+        num_magnets = 40
+        magnet_divisions = 2
+        num_slots = 24
+        two_dimensional = self.options["two_dimensional"]
+        _warper_options, _em_options, _thermal_options = _buildSolverOptions(num_magnets, magnet_divisions, num_slots, two_dimensional)
+
+        _warper_options["mesh"]["file"] = str(mesh_path)
+        _warper_options["mesh"]["model-file"] = str(egads_path)
+        _em_options["mesh"]["file"] = str(mesh_path)
+        _em_options["mesh"]["model-file"] = str(egads_path)
+        _thermal_options["mesh"]["file"] = str(mesh_path)
+        _thermal_options["mesh"]["model-file"] = str(egads_path)
+
+        if self.options["warper_options"] is not None:
+            _warper_options.update(self.options["warper_options"])
+        if self.options["em_options"] is not None:
+            _em_options.update(self.options["em_options"])
+        if self.options["thermal_options"] is not None:
+            _thermal_options.update(self.options["thermal_options"])
+
+        # em_options = self.options["em_options"]
+        # thermal_options = self.options["thermal_options"]
+        # warper_options = self.options["warper_options"]
         winding_options = self.options["winding_options"]
-        esp_files = self.options["esp_files"]
+        # esp_files = self.options["esp_files"]
         check_partials=self.options["check_partials"]
 
-        csm_file = esp_files["csm_file"]
-        egads_file = esp_files["egads_file"]
         self.add_subsystem("geom",
-                           omESP(csm_file=csm_file,
-                                 egads_file=egads_file),
+                           omESP(csm_file=str(csm_path),
+                                 egads_file=str(egads_path)),
                            promotes_inputs=["*"],
-                           promotes_outputs=[("x_surf", "x_em"), "model_depth", "num_slots"])
+                        #    promotes_outputs=["x_surf", "model_depth", "num_slots"])
+                           promotes_outputs=["x_surf", "num_slots"])
 
         self.add_subsystem("convert", om.ExecComp("stator_inner_radius = stator_id / 2"),
                             promotes=["*"])
@@ -73,34 +90,80 @@ class Motor(Multipoint):
                            om.ExecComp(f"frequency = rpm * {num_poles} / 120"),
                            promotes=["*"])
 
-        em_motor_builder = EMMotorBuilder(solver_options=solver_options,
+        em_motor_builder = EMMotorBuilder(solver_options=_em_options,
                                           warper_type="MeshWarper",
-                                          warper_options=warper_options,
-                                          winding_options=winding_options,
+                                          warper_options=_warper_options,
+                                          coupled=self.options["coupled"],
                                           check_partials=check_partials)
 
         em_motor_builder.initialize(self.comm)
 
+        coupled = self.options["coupled"]
+        # If coupling to thermal solver, compute heat sources...
+        if coupled == "thermal":
+            thermal_builder = MachBuilder(solver_type="thermal",
+                                          solver_options=_thermal_options,
+                                          solver_inputs=["h", "fluid_temp", "thermal_load"],
+                                          warper_type="MeshWarper",
+                                          warper_options=warper_options,
+                                          outputs={},
+                                          check_partials=check_partials)
+            thermal_builder.initialize(self.comm)
+        else:
+            thermal_builder = None
+
         self.mphys_add_scenario("analysis",
-                                ScenarioMotor(em_motor_builder=em_motor_builder))
+                                ScenarioMotor(em_motor_builder=em_motor_builder,
+                                              thermal_builder=thermal_builder))
+
+        # self.connect("x_surf", "x_em")
+        # self.connect("x_surf", "x_em_vol", src_indices=[i for i in range(9) if i % 3 != 0 ])
+        # self.connect("x_surf", "x_em_vol")
+
+        if coupled == "thermal":
+            self.connect("x_surf", "x_conduct")
 
         self.promotes("analysis",
                       inputs=["*"], 
-                      outputs=["average_torque",
+                      outputs=[
+                               "average_torque",
                                "ac_loss",
                                "dc_loss",
-                               "stator_core_loss",
-                               "stator_mass",
-                               "max_flux_magnitude:stator",
-                               "max_flux_magnitude:winding",
-                               "stator_volume",
-                               "average_flux_magnitude",
-                               "winding_max_peak_flux",
-                               "rms_current",
-                               "efficiency",
-                               "power_out",
-                               "power_in"
-                               ])
+                            #    "stator_core_loss",
+                            #    "stator_mass",
+                            #    "max_flux_magnitude:stator",
+                            # #    "max_flux_magnitude:winding",
+                            #    "stator_volume",
+                            #    "average_flux_magnitude:airgap",
+                            # #    "winding_max_peak_flux",
+                            #    "rms_current",
+                            #    "efficiency",
+                            #    "power_out",
+                            #    "power_in"
+                               ]
+                     )
+
+    def configure(self):
+
+        x_surf_metadata = self.geom.get_io_metadata('output', metadata_keys=['size'])['x_surf']
+        print("x_surf_metadata: ", x_surf_metadata)
+        x_surf_size = x_surf_metadata['size']
+        self.connect("x_surf", "x_em_vol", src_indices=[i for i in range(x_surf_size) if (i+1) % 3 != 0 ])
+
+
+        geom_inputs = self.geom.get_io_metadata('input', metadata_keys=['val'])
+
+        for geom_input in geom_inputs:
+            self.set_input_defaults(geom_input, geom_inputs[geom_input]['val'])
+
+        # self.set_input_defaults("tooth_tip_thickness", inputs['tooth_tip_thickness']['val'])
+        # self.set_input_defaults("tooth_tip_angle", inputs['tooth_tip_angle']['val'])
+        # self.set_input_defaults("slot_radius", inputs['slot_radius']['val'])
+        # self.set_input_defaults("shoe_spacing", inputs['shoe_spacing']['val'])
+        # self.set_input_defaults("slot_depth", inputs['slot_depth']['val'])
+        # self.set_input_defaults("tooth_width", inputs['tooth_width']['val'])
+        # self.set_input_defaults("stator_id", inputs['stator_id']['val'])
+        # # self.set_input_defaults("stack_length", inputs['shoe_spacing']['val'])
 
 if __name__ == "__main__":
 
@@ -143,17 +206,18 @@ if __name__ == "__main__":
     }
 
     num_magnets_true = 40
-    num_magnets = 160
+    num_magnets = 120
     num_slots = 24
     # rotations = [0, 1, 2, 3, 4, 5, 6, 7]
-    rotations = [0, 2, 4, 6]
+    # rotations = [0, 2, 4, 6]
+    rotations = [0, 1, 2]
     # rotations = [0]
     multipoint_opts = _buildSolverOptions(num_magnets_true,
                                           num_magnets,
                                           num_slots,
                                           rotations=rotations)
 
-    solver_options = {
+    em_options = {
         "mesh": {
             "file": "mesh_motor2D.smb",
             "model-file": "mesh_motor2D.egads",
@@ -252,7 +316,7 @@ if __name__ == "__main__":
 
     problem = om.Problem(name="motor", reports="n2")
 
-    problem.model = Motor(solver_options=solver_options,
+    problem.model = Motor(em_options=em_options,
                           warper_options=warper_options,
                           winding_options=winding_options)
 
@@ -335,9 +399,9 @@ if __name__ == "__main__":
 
     # motor_model_peak_flux = np.load("motor_model_peak_flux.npy")
 
-    # solver_options.update(solver_options["multipoint"][0])
+    # em_options.update(em_options["multipoint"][0])
     # solver = PDESolver(type="magnetostatic",
-    #                    solver_options=solver_options)
+    #                    solver_options=em_options)
     # state = np.zeros(solver.getStateSize())
 
     # core_loss_opts = {

@@ -2,38 +2,30 @@ import openmdao.api as om
 import numpy as np
 
 from mach import PDESolver, MachFunctional
-from setuptools import setup
-
-# dc_loss.add_subsystem("slot_width",
-#                         om.ExecComp("slot_width = np.pi * (2*stator_inner_radius + slot_depth + tooth_tip_thickness) / num_slots"),
-#                         promotes=["*"])
-
-# dc_loss.add_subsystem("turn_length",
-#                         om.ExecComp("turn_length = (2 * stack_length + np.pi*((tooth_width / 2) + (slot_width / 4)))"))
-# dc_loss.add_subsystem("wire_length",
-#                         om.ExecComp("wire_length = num_turns * turn_length + "))
-#                             # MachFunctional(solver=self.solvers[0],
-#                             #                 func="dc_loss",
-#                             #                 depends=dc_loss_depends),
-#                             # promotes_inputs=[("mesh_coords", "x_em_vol"), *dc_loss_depends[1:]],
-#                             # promotes_outputs=["dc_loss"])
 
 class WireLength(om.ExplicitComponent):
     def setup(self):
         self.add_input("num_slots",
-                       desc=" The number of slots in the motor")
+                       desc=" The number of slots in the motor",
+                       tags=["mphys_input"])
         self.add_input("num_turns",
-                       desc=" The number of times the wire has been wrapped around a tooth")
+                       desc=" The number of times the wire has been wrapped around a tooth",
+                       tags=["mphys_input"])
         self.add_input("stator_inner_radius",
-                       desc=" The inner radius of the stator")
+                       desc=" The inner radius of the stator",
+                       tags=["mphys_input"])
         self.add_input("tooth_tip_thickness",
-                       desc=" The thickness at the end of the tooth")
+                       desc=" The thickness at the end of the tooth",
+                       tags=["mphys_input"])
         self.add_input("slot_depth",
-                       desc=" The distance between the the stator inner radius and the edge of the stator yoke")
+                       desc=" The distance between the the stator inner radius and the edge of the stator yoke",
+                       tags=["mphys_input"])
         self.add_input("tooth_width",
-                       desc=" The width of the tooth")
+                       desc=" The width of the tooth",
+                       tags=["mphys_input"])
         self.add_input("stack_length",
-                       desc=" The axial depth of the motor")
+                       desc=" The axial depth of the motor",
+                       tags=["mphys_input"])
 
         self.add_output("wire_length",
                         desc=" The length of wire in a single phase")

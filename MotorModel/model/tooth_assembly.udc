@@ -1,12 +1,10 @@
 INTERFACE . ALL
 # Branches:
-set       magnet_angle 360/num_magnets
-set       stator_yoke_thickness (stator_od/2)-((stator_id/2)+slot_depth)-tooth_tip_thickness
 set       shoe_spacing 0.0035
 set       shoe_spacing_angle shoe_spacing*360/pi(stator_id)
 set       shoe_angle 360/num_slots-shoe_spacing_angle
 
-box       0   -stator_id/2-tooth_tip_thickness/2   -stack_length/2   0   -slot_depth-tooth_tip_thickness   stack_length
+box       0   -stator_id/2-tooth_tip_thickness/2   -stack_length/2   0   -slot_depth   stack_length
 revolve   0   0   0   0   0   1   shoe_angle/2
 restore   tooth   0
 subtract  none   1   0

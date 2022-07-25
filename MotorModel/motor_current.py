@@ -43,37 +43,71 @@ class SlotArea(om.ExplicitComponent):
         self.declare_partials("*", "*", method="cs")
 
     def compute(self, inputs, outputs):
+        # num_slots = inputs["num_slots"][0]
+        # sir = inputs["stator_inner_radius"][0]
+        # ttt = inputs["tooth_tip_thickness"][0]
+        # tta = inputs["tooth_tip_angle"][0] * np.pi / 180 # convert to radians
+        # ds = inputs["slot_depth"][0]
+        # sr = inputs["slot_radius"][0]
+        # wt = inputs["tooth_width"][0]
+        # shoe_spacing = inputs["shoe_spacing"][0]
+
+        # shoe_spacing_angle  = shoe_spacing / sir # radians
+        # sa  = 2*np.pi/num_slots - shoe_spacing_angle # radians
+
+        # x = np.array([sir+ttt/3,
+        #             (sir+ttt)*np.cos(sa/2),
+        #             (wt/2 - (sir+ttt)*(np.sin(sa/2)-np.tan(tta-np.pi/2)*np.cos(sa/2)))/ np.tan(tta-np.pi/2),
+        #             sir+ds,
+        #             sir+ds])
+        # y = np.array([0.0,
+        #             (sir+ttt)*np.sin(sa/2),
+        #             wt/2.0,
+        #             wt/2.0,
+        #             0.0])
+    
+        # tooth_area = _polygon_area(x, y) * -1 # negative since the coordinates trace half a tooth clockwise
+        # tooth_area += (4.0 - np.pi) / 2.0 * sr ** 2 # add tooth area for fillets
+        
+        # winding_band_area = (np.pi*(sir+ds)**2 - np.pi*(sir)**2) / (num_slots*2)
+        # slot_area = winding_band_area - tooth_area
+        # # print("slot area: ", slot_area, "should be: ", 0.0000729, "ratio: ", slot_area / 0.0000729)
+        # # print("tooth area should be: ", winding_band_area - 0.0000729, "is: ", tooth_area, "ratio: ", tooth_area / (winding_band_area - 0.0000729))
+        # outputs["slot_area"] = slot_area
+
         num_slots = inputs["num_slots"][0]
-        sir = inputs["stator_inner_radius"][0]
-        ttt = inputs["tooth_tip_thickness"][0]
-        tta = inputs["tooth_tip_angle"][0] * np.pi / 180 # convert to radians
-        ds = inputs["slot_depth"][0]
-        sr = inputs["slot_radius"][0]
-        wt = inputs["tooth_width"][0]
+        stator_inner_radius = inputs["stator_inner_radius"][0]
+        tooth_tip_thickness = inputs["tooth_tip_thickness"][0]
+        tooth_tip_angle = inputs["tooth_tip_angle"][0] * np.pi / 180 # convert to radians
+        slot_depth = inputs["slot_depth"][0]
+        # slot_radius = inputs["slot_radius"][0]
+        tooth_width = inputs["tooth_width"][0]
         shoe_spacing = inputs["shoe_spacing"][0]
 
-        shoe_spacing_angle  = shoe_spacing / sir # radians
-        sa  = 2*np.pi/num_slots - shoe_spacing_angle # radians
+        shoe_spacing_angle  = shoe_spacing / stator_inner_radius # radians
+        shoe_angle  = 2*np.pi/num_slots - shoe_spacing_angle # radians
 
-        x = np.array([sir+ttt/3,
-                    (sir+ttt)*np.cos(sa/2),
-                    (wt/2 - (sir+ttt)*(np.sin(sa/2)-np.tan(tta-np.pi/2)*np.cos(sa/2)))/ np.tan(tta-np.pi/2),
-                    sir+ds,
-                    sir+ds])
-        y = np.array([0.0,
-                    (sir+ttt)*np.sin(sa/2),
-                    wt/2.0,
-                    wt/2.0,
-                    0.0])
-    
-        tooth_area = _polygon_area(x, y) * -1 # negative since the coordinates trace half a tooth clockwise
-        tooth_area += (4.0 - np.pi) / 2.0 * sr ** 2 # add tooth area for fillets
-        
-        winding_band_area = (np.pi*(sir+ds)**2 - np.pi*(sir)**2) / (num_slots*2)
-        slot_area = winding_band_area - tooth_area
-        # print("slot area: ", slot_area, "should be: ", 0.0000729, "ratio: ", slot_area / 0.0000729)
-        # print("tooth area should be: ", winding_band_area - 0.0000729, "is: ", tooth_area, "ratio: ", tooth_area / (winding_band_area - 0.0000729))
-        outputs["slot_area"] = slot_area
+        trap_base = 2*np.pi * (stator_inner_radius + tooth_tip_thickness) / num_slots - shoe_spacing
+        trap_top = tooth_width
+
+        tooth_incline = shoe_angle/2 + tooth_tip_angle
+        # trap_height = (trap_base / 2 - trap_top) * np.tan(tooth_tip_angle)
+        trap_height = (trap_base / 2 - trap_top) * np.tan(tooth_incline)
+        print(f"trap_height: {trap_height}")
+
+        trap_area = 0.5 * (trap_base + trap_top) * trap_height
+        print(f"trap_area: {trap_area}")
+
+        rect_height = slot_depth - tooth_tip_thickness - trap_height
+        rect_area = tooth_width * rect_height
+        print(f"rect_area: {rect_area}")
+
+        tooth_area = trap_area + rect_area
+
+        winding_region_area = np.pi * ((stator_inner_radius + slot_depth) ** 2 - (stator_inner_radius + tooth_tip_thickness) ** 2) / num_slots
+        slot_area = (winding_region_area - tooth_area) / 2
+        # outputs["slot_area"] = slot_area
+        outputs["slot_area"] = 6e-5
 
 class CopperArea(om.ExplicitComponent):
     """
@@ -223,6 +257,27 @@ if __name__ == "__main__":
             y = np.array([0.0, 0.0, 2.0, 2.0])
 
             self.assertAlmostEqual(9.0, _polygon_area(x, y))
+
+    class TestSlotArea(unittest.TestCase):
+        def test_motor_area(self):
+            problem = om.Problem()
+            problem.model.add_subsystem("slot_area",
+                                        SlotArea(),
+                                        promotes_inputs=["*"],
+                                        promotes_outputs=["slot_area"])
+            
+            problem.setup()
+
+            problem["num_slots"] = 24
+            problem["stator_inner_radius"] = 0.0940855
+            problem["tooth_tip_thickness"] = 0.000816392
+            problem["tooth_tip_angle"] = 8.5
+            problem["slot_depth"] = 0.00681009
+            problem["tooth_width"] = 0.00473271
+            problem["shoe_spacing"] = 0.0025
+
+            problem.run_model()
+            self.assertAlmostEqual(0.000120, 2*problem.get_val("slot_area")[0])
 
     class TestMotorCurrent(unittest.TestCase):
         def test_ref_motor_current(self):

@@ -10,7 +10,7 @@ from mach import MachSolver
 from motor_current import MotorCurrent
 
 num_magnets_true = 40
-num_magnets = 40
+num_magnets = 160 #40
 mag_pitch = num_magnets // num_magnets_true
 num_slots = 24
 
@@ -18,7 +18,7 @@ start = 0
 nturns = 1
 
 if __name__ == "__main__":
-    rotation = 2;
+    rotation = 0
     theta_m = rotation / num_magnets * (2*np.pi)
 
     # divided by 4 since magnetis are in a hallbach array, takes 4 magnets to get 2 poles
@@ -37,8 +37,13 @@ if __name__ == "__main__":
         "silent": False,
         "print-options": True,
         "mesh": {
-            "file": "mesh/reference_motor/motor2D.smb",
-            "model-file": "mesh/reference_motor/motor2D.egads",
+            # "file": "mesh/reference_motor/motor2D.smb",
+            # "model-file": "mesh/reference_motor/motor2D.egads",
+            # "file": "../meshes/ref_120_mags/motor2D.smb",
+            # "model-file": "../meshes/ref_120_mags/motor2D.egads",
+            # "file": "../meshes/ref_160_mags/motor2D.smb",
+            "file": "../meshes/ref_160_mags/parmesh/motor2D.smb",
+            "model-file": "../meshes/ref_160_mags/motor2D.egads",
             "refine": 0
         },
         "space-dis": {
@@ -66,10 +71,10 @@ if __name__ == "__main__":
             "printlevel": 0
         },
         "nonlin-solver": {
-            # "type": "inexactnewton",
-            "type": "newton",
+            "type": "inexactnewton",
+            # "type": "newton",
             "printlevel": 1,
-            "maxiter": 100,
+            "maxiter": 25,
             "reltol": 1e-4,
             "abstol": 1.1,
             "abort": False
@@ -78,14 +83,14 @@ if __name__ == "__main__":
             "stator": {
                 "attr": 1,
                 "material": "hiperco50",
-                # "linear": False
-                "linear": True
+                "linear": False
+                # "linear": True
             },
             "rotor": {
                 "attr": 2,
                 "material": "hiperco50",
-                # "linear": False
-                "linear": True
+                "linear": False
+                # "linear": True
             },
             "aircore": {
                 "material": "air",
@@ -153,7 +158,8 @@ if __name__ == "__main__":
     # zero = np.array([0.0, 0.0, 0.0])
     # solver.setFieldValue(state, zero);
 
-    state = np.load("state.npy")
+    # state = np.load("state.npy")
+    state = np.zeros(solver.getStateSize())
 
     # winding config inputs
     # num_turns = 504
@@ -236,6 +242,10 @@ if __name__ == "__main__":
     solver.calcOutput("flux_magnitude", inputs, dg_flux_tv)
     print("dg_flux_tv", dg_flux_tv)
     print("mag dg_flux", max(dg_flux_tv))
+    print("flux size:", dg_flux_mag_size)
+
+    np.save("flux_mag"+str(num_magnets)+"_"+str(rotation), dg_flux_tv)
+
     # max_flux_options = {
     #     "rho": 500.0,
     #     "attributes": list(range(5, 5+2*num_slots))
