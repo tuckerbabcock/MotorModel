@@ -1,0 +1,42 @@
+# Design Parameters:
+despmtr     stator_od            0.679
+despmtr     stator_id            0.550
+despmtr     rotor_od             0.505 # 0.517
+despmtr     rotor_id             0.475
+despmtr     slot_depth           0.044
+despmtr     tooth_width          0.030
+despmtr     magnet_thickness     0.015 # 0.015
+despmtr     tooth_tip_thickness  0.007
+despmtr     tooth_tip_angle      35
+despmtr     slot_radius          0.010
+despmtr     shoe_spacing         0.025
+
+# Configuration Parameters:
+cfgpmtr     num_magnets          44.00000
+cfgpmtr     magnet_divisions     1.0
+cfgpmtr     num_slots            27.00000
+cfgpmtr     heatsink_thickness   0.075
+cfgpmtr     shaft_thickness      0.05
+
+# Constant Parameters:
+conpmtr     rotor_rotation       0.0 #-360/44/2-1.1688 #-4.5
+
+conpmtr   DumpEgads 0
+
+# Global Attributes:
+attribute capsAIM $egadsTessAIM;aflr4AIM;tetgenAIM;pumiAIM
+attribute capsMeshLength 0.025
+
+UDPRIM $/tooth2D
+ store     tooth   0   0
+
+UDPRIM $/tooth_assembly2D_true
+ store     tooth_assembly   0   0
+
+UDPRIM $/stator_assembly2D_true
+  store     stator_assembly   0   0
+
+UDPRIM $/rotor_assembly2D_true
+  store     rotor_assembly   0   0
+
+UDPRIM $/airgap2D_true

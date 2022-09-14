@@ -1,0 +1,31 @@
+INTERFACE . ALL
+
+cylinder  0   0   0   0   0   1   stator_od/2
+extract 4
+cylinder  0   0   0   0   0   1   rotor_od/2+magnet_thickness
+extract 4
+subtract  none   1   0
+
+restore stator_assembly
+union 0  0  0
+extract 5 # 6 with heatsink
+
+select face
+   attribute capsGroup $air_gap
+   attribute capsMesh $air_gap
+   attribute AFLR_GBC   $STD_UG3_GBC
+   #attribute .tParams 0.0001;0.5;15
+   #attribute .tParams 0.000375;0.5;15
+   #attribute .tParams 0.0005;0.5;15
+   #attribute .tParams 0.5;0.5;15
+   attribute _color $white
+   attribute _bcolor $white
+
+restore stator_assembly
+union 0  0  0
+
+restore rotor_assembly
+union 0  0  0
+   attribute _name $motor_assembly
+
+END

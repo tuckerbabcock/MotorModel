@@ -1,0 +1,94 @@
+INTERFACE . ALL
+# Branches:
+
+restore   tooth_assembly   0
+
+restore   tooth_assembly   0
+set name val2str(1,0)+$_tooth_assembly
+store !name 0   0
+
+set log_n floor(log(num_slots)/log(2))
+patbeg i log_n
+   set n 2^(i-1)
+
+   set name val2str(n,0)+$_tooth_assembly
+   restore !name
+
+   rotatez   n*360/num_slots   0   0
+   union     0   0   0
+      attribute _color "0.428571;0.285714;0.428571"
+      attribute _bcolor "0.428571;0.285714;0.428571"
+      attribute _name $stator_assembly
+
+
+   set np1 2^(i)
+
+   set name val2str(np1,0)+$_tooth_assembly
+   store !name
+   restore !name
+patend
+
+set numer num_slots
+
+set offset 0
+patbeg i log_n
+   set n 2^(i-1)
+
+   set rem mod(numer,2)
+   ifthen rem EQ 1
+      set name val2str(n,0)+$_tooth_assembly
+      restore !name
+      set offset offset+n
+
+      rotatez   -offset*360/num_slots   0   0
+      union     0   0   0
+         attribute _color "0.428571;0.285714;0.428571"
+         attribute _bcolor "0.428571;0.285714;0.428571"
+         attribute _name $stator_assembly
+
+   endif
+   set numer int(numer/2)
+patend
+
+#store     stator_shell   0   0
+
+
+#cylinder  0   0   -model_depth/2   0   0   model_depth/2   stator_od/2+heatsink_thickness
+#  attribute _name $heatsink
+#  attribute _color "0.714286;0.571429;0.285714"
+#  attribute _bcolor "0.714286;0.571429;0.285714"
+#cylinder  0   0   -model_depth/2   0   0   model_depth/2   stator_od/2
+#subtract
+
+#extract   0
+#  attribute _name $heatsink_shell
+#select face 1
+#   attribute capsGroup $motor
+#   attribute capsMesh $motor
+#   attribute AFLR_GBC   $TRANSP_UG3_GBC
+#select face 3
+#   attribute capsGroup $motor
+#   attribute capsMesh $motor
+#   attribute AFLR_GBC   $TRANSP_UG3_GBC
+#select face 5
+#   attribute capsGroup $motor
+#   attribute capsMesh $motor
+#   attribute AFLR_GBC   $TRANSP_UG3_GBC
+#select face 6
+#   attribute capsGroup $motor
+#   attribute capsMesh $motor
+#   attribute AFLR_GBC   $TRANSP_UG3_GBC
+#select face 2
+#   attribute capsGroup $heatsink
+#   attribute capsMesh $heatsink
+#   attribute AFLR_GBC   $STD_UG3_GBC
+#   attribute .tParams 0.0005;0.5;15
+#select face 4
+#   attribute capsGroup $heatsink
+#   attribute capsMesh $heatsink
+#   attribute AFLR_GBC   $STD_UG3_GBC
+#   attribute .tParams 0.0005;0.5;15
+#
+#restore   stator_shell   0
+#union #with stator_shell
+#  attribute _name $stator_assembly

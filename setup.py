@@ -8,10 +8,10 @@ __version__ = re.findall(
 
 setup(name='MotorModel',
       version=__version__,
-      author='',
-      author_email='',
+      author='Tucker Babcock',
+      author_email='tuckerbabcock1@gmail.com',
       url='https://github.com/tuckerbabcock/MotorModel',
-      license='',
+      license='BSD 3-Clause License',
       packages=[
           'MotorModel',
       ],
