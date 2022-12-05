@@ -5,7 +5,7 @@ set       shoe_angle 360/num_slots-shoe_spacing_angle
 
 box       0   -stator_id/2-tooth_tip_thickness   0   0   -slot_depth   0
 rotatez 360/num_slots/2
-revolve   0   0   0   0   0   1   -(360/num_slots/2-1)
+revolve   0   0   0   0   0   1   -(360/num_slots/2)
 restore   half_tooth   0
 union
 extract 1

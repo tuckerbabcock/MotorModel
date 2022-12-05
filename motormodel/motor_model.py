@@ -1,7 +1,4 @@
-import os
-from pathlib import Path
-
-import numpy as np
+import collections
 
 import openmdao.api as om
 from mphys import Multipoint
@@ -13,17 +10,19 @@ from .scenario_motor import ScenarioMotor
 from .motor_em_builder import EMMotorBuilder
 from .motor_options import _buildSolverOptions
 
-# _mesh_file = "mesh_motor2D.smb"
-# _egads_file = "mesh_motor2D.egads"
-# _csm_file = "motor2D.csm"
-
-# _2D_mesh_file = "mesh_motor2D_true.smb"
-# _2D_egads_file = "mesh_motor2D_true.egads"
-# _2D_csm_file = "motor2D_true.csm"
-
-# _2D_mesh_file = "pw127_e.smb"
-# _2D_egads_file = "pw127_e.egads"
-# _2D_csm_file = "pw127_e.csm"
+# https://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
+def _nested_update(source, overrides):
+    """
+    Update a nested dictionary or similar mapping.
+    Modify ``source`` in place.
+    """
+    for key, value in overrides.items():
+        if isinstance(value, collections.Mapping) and value:
+            returned = _nested_update(source.get(key, {}), value)
+            source[key] = returned
+        else:
+            source[key] = overrides[key]
+    return source
 
 class Motor(Multipoint): 
     def initialize(self):
@@ -40,6 +39,7 @@ class Motor(Multipoint):
         self.options.declare("em_options", types=dict, default=None)
         self.options.declare("thermal_options", types=dict, default=None)
         self.options.declare("warper_options", types=dict, default=None)
+        self.options.declare("geom_partials", desc="", default=None)
         self.options.declare("two_dimensional", types=bool, default=True, desc=" Use a two dimensional FEA model")
         self.options.declare("check_partials", default=False)
 
@@ -52,9 +52,11 @@ class Motor(Multipoint):
 
         egads_path = self.options["egads_path"]
         csm_path = self.options["csm_path"]
+        geom_partials = self.options["geom_partials"]
         self.add_subsystem("geom",
                            omESP(csm_file=str(csm_path),
-                                 egads_file=str(egads_path)),
+                                 egads_file=str(egads_path),
+                                 partials=geom_partials),
                            promotes_inputs=["*"],
                            promotes_outputs=esp_outputs)
 
@@ -77,6 +79,7 @@ class Motor(Multipoint):
         current_indices = self.options["current_indices"]
         _warper_options, _em_options, _thermal_options = _buildSolverOptions(components,
                                                                              multipoint_rotations,
+                                                                             num_magnets,
                                                                              magnet_divisions, 
                                                                              two_dimensional,
                                                                              hallbach_segments,
@@ -94,11 +97,14 @@ class Motor(Multipoint):
         _thermal_options["mesh"]["model-file"] = str(egads_path)
 
         if self.options["warper_options"] is not None:
-            _warper_options.update(self.options["warper_options"])
+            # _warper_options.update(self.options["warper_options"])
+            _nested_update(_warper_options, self.options["warper_options"])
         if self.options["em_options"] is not None:
-            _em_options.update(self.options["em_options"])
+            # _em_options.update(self.options["em_options"])
+            _nested_update(_em_options, self.options["em_options"])
         if self.options["thermal_options"] is not None:
-            _thermal_options.update(self.options["thermal_options"])
+            # _thermal_options.update(self.options["thermal_options"])
+            _nested_update(_thermal_options, self.options["thermal_options"])
 
         check_partials=self.options["check_partials"]
 
@@ -140,10 +146,11 @@ class Motor(Multipoint):
                       inputs=["*"], 
                       outputs=[
                                "average_torque",
-                               "energy",
+                            #    "energy",
                                "ac_loss",
                                "dc_loss",
                                "stator_core_loss",
+                               "total_loss",
                                "stator_mass",
                                "max_flux_magnitude:stator",
                             #    "max_flux_magnitude:winding",

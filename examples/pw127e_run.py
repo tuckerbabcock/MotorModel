@@ -7,10 +7,10 @@ if __name__ == "__main__":
 
     options = {
         "space-dis": {
-            "degree": 2,
+            "degree": 1,
         }
     }
-    problem.model = PW127E()
+    problem.model = PW127E(em_options=options)
 
     problem.setup(mode="rev")
 
@@ -20,7 +20,6 @@ if __name__ == "__main__":
     problem.set_val("rms_current_density", 15e6)
     problem.set_val("strand_radius", 0.001671)
     problem.set_val("rpm", 1200)
-
     problem.set_val("rotor_od", 0.517)
     problem.set_val("magnet_thickness", 0.015)
 
@@ -39,8 +38,6 @@ if __name__ == "__main__":
     print(f"stator volume: {problem.get_val('stator_volume')}")
     print(f"stator mass: {problem.get_val('stator_mass')}")
     print(f"airgap avg flux: {problem.get_val('average_flux_magnitude:airgap')}")
-    # print(f"winding max flux: {problem.get_val('max_flux_magnitude:winding')}")
-    # print(f"winding peak max flux: {problem.get_val('winding_max_peak_flux')}")
 
     print(f"state size: {problem.get_val('analysis.em_state0').shape}")
 

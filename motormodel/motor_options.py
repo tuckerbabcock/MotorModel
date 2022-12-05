@@ -1,18 +1,38 @@
 import numpy as np
 
-def _buildMultipointOptions(magnet_attrs, magnet_divisions, rotations, hallbach_segments):
+def _buildMultipointOptions(num_magnets,
+                            magnet_attrs,
+                            magnet_divisions,
+                            spacer_attrs,
+                            rotations,
+                            hallbach_segments,
+                            theta_e_offset=0.0):
     if (hallbach_segments != 4):
         raise ValueError("Hallbach segments must be 4!")
 
     num_magnet_attrs = len(magnet_attrs)
 
-    num_magnets = num_magnet_attrs // magnet_divisions
+    if spacer_attrs is not None:
+        num_spacer_attrs = len(spacer_attrs)
+    else:
+        num_spacer_attrs = 0
+
+    spacer_divisions = num_spacer_attrs // num_magnets
+    full_divisions = magnet_divisions
+    magnet_divisions -= spacer_divisions
+
+    # num_magnets = num_magnet_attrs // magnet_divisions
+    # num_magnets = num_spacer_attrs // spacer_divisions
+
+    print(f"spacer divisions: {spacer_divisions}")
+    print(f"magnet divisions: {magnet_divisions}")
+
     magnet_idxs = {
         # [leaf for tree in forest for leaf in tree]
-        "south": [idx for i in range(0, num_magnets, 4) for idx in range(i*magnet_divisions, (i+1)*magnet_divisions)],
-        "cw": [idx for i in range(1, num_magnets, 4) for idx in range(i*magnet_divisions, (i+1)*magnet_divisions)],
-        "north": [idx for i in range(2, num_magnets, 4) for idx in range(i*magnet_divisions, (i+1)*magnet_divisions)],
-        "ccw": [idx for i in range(3, num_magnets, 4) for idx in range(i*magnet_divisions, (i+1)*magnet_divisions)]
+        "south": [idx for i in range(0, num_magnets, 4) for idx in range(i*full_divisions, (i+1)*full_divisions) if (idx % full_divisions) < magnet_divisions],
+        "cw": [idx for i in range(1, num_magnets, 4) for idx in range(i*full_divisions, (i+1)*full_divisions) if (idx % full_divisions) < magnet_divisions],
+        "north": [idx for i in range(2, num_magnets, 4) for idx in range(i*full_divisions, (i+1)*full_divisions) if (idx % full_divisions) < magnet_divisions],
+        "ccw": [idx for i in range(3, num_magnets, 4) for idx in range(i*full_divisions, (i+1)*full_divisions) if (idx % full_divisions) < magnet_divisions]
     }
 
     multipoint_opts = []
@@ -36,7 +56,8 @@ def _buildMultipointOptions(magnet_attrs, magnet_divisions, rotations, hallbach_
                     "ccw": [rotated_attrs[i] for i in magnet_idxs["ccw"]]
                 }
             },
-            "theta_e": theta_e + 0.6726906204350387
+            # "theta_e": theta_e + 0.6726906204350387
+            "theta_e": theta_e
         })
     return multipoint_opts
 
@@ -60,6 +81,7 @@ def _buildCurrentOptions(current_attrs, current_indices):
 
 def _buildSolverOptions(components,
                         multipoint_rotations,
+                        num_magnets,
                         magnet_divisions,
                         two_dimensional,
                         hallbach_segments,
@@ -109,21 +131,34 @@ def _buildSolverOptions(components,
     current_options = _buildCurrentOptions(current_attrs, current_indices)
 
     magnet_attrs = components["magnets"]["attrs"]
-    multipoint_opts = _buildMultipointOptions(magnet_attrs,
+    if "magnet_spacers" in components:
+        spacer_attrs = components["magnet_spacers"].get("attrs")
+    else:
+        spacer_attrs = None
+    multipoint_opts = _buildMultipointOptions(num_magnets,
+                                              magnet_attrs,
                                               magnet_divisions,
+                                              spacer_attrs,
                                               multipoint_rotations,
                                               hallbach_segments)
+
+    if spacer_attrs is not None:
+        components["magnets"]["attrs"] = [attr for attr in components["magnets"]["attrs"] if attr not in spacer_attrs]
+        components["airgap"]["attrs"] = [*components["airgap"]["attrs"], *spacer_attrs]
+        components.pop("magnet_spacers")
 
     em_options = {
         "space-dis": {
             "basis-type": basis,
-            "degree": 3
+            "degree": 1
         },
         "nonlin-solver": {
             # "type": "inexactnewton",
             # "type": "newton",
             "type": "relaxednewton",
-            "linesearch": "backtracking",
+            "linesearch": {
+                "type": "backtracking"
+            },
             "printlevel": 1,
             "maxiter": 25,
             "reltol": 1e-5,
@@ -131,9 +166,9 @@ def _buildSolverOptions(components,
             "abort": False
         },
         "lin-solver": {
-            "type": "pcg",
+            # "type": "pcg",
             # "type": "minres",
-            # "type": "gmres",
+            "type": "gmres",
             "kdim": 200,
             "printlevel": 1,
             "maxiter": 200,
@@ -141,13 +176,13 @@ def _buildSolverOptions(components,
             "reltol": 1e-12
         },
         "adj-solver": {
-            "type": "pcg",
+            # "type": "pcg",
             # "type": "minres",
-            # "type": "gmres",
+            "type": "gmres",
             "printlevel": 1,
             "maxiter": 200,
-            "abstol": 1e-10,
-            "reltol": 1e-10
+            "abstol": 1e-12,
+            "reltol": 1e-12
         },
         "lin-prec": {
             "type": prec,

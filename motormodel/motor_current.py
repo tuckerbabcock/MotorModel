@@ -93,14 +93,14 @@ class SlotArea(om.ExplicitComponent):
         tooth_incline = shoe_angle/2 + tooth_tip_angle
         # trap_height = (trap_base / 2 - trap_top) * np.tan(tooth_tip_angle)
         trap_height = (trap_base / 2 - trap_top) * np.tan(tooth_incline)
-        print(f"trap_height: {trap_height}")
+        # print(f"trap_height: {trap_height}")
 
         trap_area = 0.5 * (trap_base + trap_top) * trap_height
-        print(f"trap_area: {trap_area}")
+        # print(f"trap_area: {trap_area}")
 
         rect_height = slot_depth - tooth_tip_thickness - trap_height
         rect_area = tooth_width * rect_height
-        print(f"rect_area: {rect_area}")
+        # print(f"rect_area: {rect_area}")
 
         tooth_area = trap_area + rect_area
 

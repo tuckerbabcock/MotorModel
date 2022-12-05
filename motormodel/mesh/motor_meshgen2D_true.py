@@ -2,10 +2,10 @@ import pyCAPS
 import math
 
 # Initialize capsProblem object
-# project_name = "mesh_motor2D_true"
-# csm_file = "../model/motor2D_true.csm"
-project_name = "pw127_e"
-csm_file = "../model/pw127_e.csm"
+project_name = "sequential_motor"
+csm_file = "../model/motor2D_true.csm"
+# project_name = "pw127_e"
+# csm_file = "../model/pw127_e.csm"
 myProblem = pyCAPS.Problem(problemName=project_name,
                            capsFile=csm_file) 
 
