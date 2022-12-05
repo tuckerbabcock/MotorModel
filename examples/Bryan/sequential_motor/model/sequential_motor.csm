@@ -1,0 +1,70 @@
+## Design Parameters:
+#despmtr     stator_od            0.29393142
+#despmtr     stator_id            0.21020408
+#despmtr     rotor_od             0.20580297
+#despmtr     rotor_id             0.2
+#despmtr     slot_depth           0.03936114
+#despmtr     tooth_width          0.00483581
+#despmtr     magnet_thickness     0.00120056
+#despmtr     tooth_tip_thickness  0.00081639
+
+## Design Parameters:
+#despmtr     stator_od            0.29405362
+#despmtr     stator_id            0.21020169
+##despmtr     rotor_od             0.20580146
+#despmtr     rotor_od             0.20070146
+#despmtr     rotor_id             0.197
+#despmtr     slot_depth           0.03942408
+#despmtr     tooth_width          0.00483455
+##despmtr     magnet_thickness     0.00120012
+#despmtr     magnet_thickness     0.00280012
+##despmtr     tooth_tip_thickness  0.00081639
+#despmtr     tooth_tip_thickness  0.00181639
+
+# Design Parameters:
+despmtr     stator_od            0.29005362
+#despmtr     stator_od            0.26
+despmtr     stator_id            0.21020169
+#despmtr     rotor_od             0.20580146
+despmtr     rotor_od             0.20070146
+despmtr     rotor_id             0.197
+despmtr     slot_depth           0.03742408
+#despmtr     slot_depth           0.0225
+despmtr     tooth_width          0.00483455
+#despmtr     magnet_thickness     0.00120012
+despmtr     magnet_thickness     0.0028
+#despmtr     tooth_tip_thickness  0.00081639
+despmtr     tooth_tip_thickness  0.0025
+
+# Configuration Parameters:
+despmtr     tooth_tip_angle      1.0
+despmtr     slot_radius          0.0025
+despmtr     shoe_spacing         0.0025
+cfgpmtr     num_magnets          40.00000
+cfgpmtr     magnet_divisions     5.0
+cfgpmtr     num_slots            24.00000
+cfgpmtr     heatsink_thickness   0.075
+cfgpmtr     shaft_thickness      0.05
+
+# Constant Parameters:
+conpmtr     rotor_rotation       -4.5
+
+conpmtr   DumpEgads 0
+
+# Global Attributes:
+attribute capsAIM $egadsTessAIM;aflr4AIM;tetgenAIM;pumiAIM
+attribute capsMeshLength 1
+
+UDPRIM $/tooth2D
+ store     tooth   0   0
+
+UDPRIM $/tooth_assembly2D_true
+ store     tooth_assembly   0   0
+
+UDPRIM $/stator_assembly2D_true
+  store     stator_assembly   0   0
+
+UDPRIM $/rotor_assembly2D_true
+  store     rotor_assembly   0   0
+
+UDPRIM $/airgap2D_true
