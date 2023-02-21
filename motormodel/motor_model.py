@@ -119,12 +119,14 @@ class Motor(Multipoint):
 
         coupled = self.options["coupled"]
         # If coupling to thermal solver, compute heat sources...
-        if coupled == "thermal":
+        if coupled == "thermal" or coupled == "thermal_full": # TODO: Change conditional logic to separate one way and fully coupled
             thermal_builder = MachBuilder(solver_type="thermal",
                                           solver_options=_thermal_options,
                                           solver_inputs=["h", "fluid_temp", "thermal_load"],
-                                          warper_type="MeshWarper",
-                                          warper_options=warper_options,
+                                        # TODO: Determine if this is OK
+                                        #   warper_type="MeshWarper",
+                                          warper_type=None,
+                                          warper_options=_warper_options,
                                           outputs={},
                                           check_partials=check_partials)
             thermal_builder.initialize(self.comm)
@@ -139,8 +141,12 @@ class Motor(Multipoint):
         # self.connect("x_surf", "x_em_vol", src_indices=[i for i in range(9) if i % 3 != 0 ])
         # self.connect("x_surf", "x_em_vol")
 
-        if coupled == "thermal":
-            self.connect("x_surf", "x_conduct")
+        # TODO: Determine if this is OK
+        # Could not find any instances of "x_conduct" in MotorModel files or mach repo. Was causing error by virtue of it not existing, so commented out.
+        # if coupled == "thermal":
+        #     self.connect("x_surf", "x_conduct")
+
+        
 
         self.promotes("analysis",
                       inputs=["*"], 
@@ -166,11 +172,14 @@ class Motor(Multipoint):
 
     def configure(self):
         two_dimensional = self.options["two_dimensional"]
+        coupled = self.options["coupled"]
         if two_dimensional:
             x_surf_metadata = self.geom.get_io_metadata('output', metadata_keys=['size'])['x_surf']
             print("x_surf_metadata: ", x_surf_metadata)
             x_surf_size = x_surf_metadata['size']
             self.connect("x_surf", "x_em_vol", src_indices=[i for i in range(x_surf_size) if (i+1) % 3 != 0 ])
+            if coupled=="thermal" or coupled == "thermal_full": # TODO: Change conditional logic to separate one way and fully coupled
+                self.connect("x_surf", "x_conduct_vol", src_indices=[i for i in range(x_surf_size) if (i+1) % 3 != 0 ])
         else:
             self.connect("x_surf", "x_em")
 

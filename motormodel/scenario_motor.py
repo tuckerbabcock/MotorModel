@@ -46,8 +46,8 @@ class ScenarioMotor(Scenario):
             thermal = thermal_builder.get_coupling_group_subsystem(self.name)
             coupling_group.mphys_add_subsystem("thermal", thermal)
 
-        coupling_group.nonlinear_solver = om.NonlinearRunOnce()
-        coupling_group.linear_solver = om.LinearRunOnce()
+        coupling_group.nonlinear_solver = om.NonlinearRunOnce() # TODO: will have to be replaced by om.NonlinearBlockGS()
+        coupling_group.linear_solver = om.LinearRunOnce() # TODO: will this solver stay as is?
         # coupling_group.nonlinear_solver = om.NonlinearBlockGS(maxiter=25, iprint=2,
         #                                                       atol=1e-8, rtol=1e-8,
         #                                                       use_aitken=True)
@@ -56,6 +56,12 @@ class ScenarioMotor(Scenario):
         #                                                 use_aitken=True)
 
         self.mphys_add_subsystem('coupling', coupling_group)
+
+        # From OpenMDAO Sellar example # TODO: Determine if these lines are already within the scope of problem
+        # cycle = prob.model.add_subsystem('cycle', om.Group(), promotes=['*']) -> cycle analogous to coupling_group
+        # cycle.add_subsystem('d1', SellarDis1(), promotes_inputs=['x', 'z', 'y2'], promotes_outputs=['y1']) -> discipline 1 analogous to the EM solver
+        # cycle.add_subsystem('d2', SellarDis2(), promotes_inputs=['z', 'y1'], promotes_outputs=['y2']) -> discipline 2 analogous to the thermal solver
+        # cycle.nonlinear_solver = om.NonlinearBlockGS()
 
         self.mphys_add_post_coupling_subsystem("em", em_motor_builder, self.name)
         if thermal_builder is not None:

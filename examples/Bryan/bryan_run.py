@@ -16,18 +16,20 @@ if __name__ == "__main__":
                 "degree": 1,
                 "basis-type": "h1"
             }
-        }
+        },
+        "UseCAL2forCoreLoss": False
     }
     problem.model = SequentialMotor(em_options=options)
 
     problem.setup(mode="rev")
 
-    solver = problem.model.analysis.coupling.em.solvers[0]
-
-    temp_size = solver.getFieldSize("temperature")
-    temperature = np.zeros(temp_size)
-    temperature_func = lambda x: 273.15 + 10*np.linalg.norm(x)**2
-    solver.setState(temperature_func, temperature, "temperature")
+    EMSolver = problem.model.analysis.coupling.em.solvers[0]
+    try:
+        ThermalSolver = problem.model.analysis.coupling.thermal.solver
+        problem.set_val("h", 1)
+        problem.set_val("fluid_temp", 293.15)
+    except:
+        ThermalSolver = None
 
     # strand_current_density = 11e6
     # strand_radius = 0.00016
@@ -53,22 +55,48 @@ if __name__ == "__main__":
     # problem.set_val("magnet_thickness", 0.002092)
     # problem.set_val("tooth_tip_thickness", 0.000816392)
     # problem.set_val("tooth_tip_angle", 8.5)
-    # problem.set_val("h", 1)
-    # problem.set_val("fluid_temp", 0)
 
-    problem.run_model()
+    # Let temperature field be T(x)= T0 + T_mult*np.linalg.norm(x)**x_exp
+    T0 = np.array([293.15])#, 60+273.15, 100+273.15, 140+273.15, 20+273.15, 20+273.15, 60+273.15, 100+273.15, 20+273.15, 60+273.15, 100+273.15, 140+273.15]) 
+    T_mult = np.array([0])#, 0, 0, 0, 100, -100, 60, 140, 140, 60, 100, 20])
+    x_exp = np.array([0])#, 0, 0, 0, 1, 1, 1, 1, 2, 3, 4, 5])
+    CoreLosses = np.zeros(np.size(T0))
+    for i in range(np.size(CoreLosses)):
 
-    print(f"Power out: {problem.get_val('power_out')}")
-    print(f"efficiency: {problem.get_val('efficiency')}")
-    print(f"avg torque: {problem.get_val('average_torque')}")
-    print(f"ac loss: {problem.get_val('ac_loss')}")
-    print(f"dc loss: {problem.get_val('dc_loss')}")
-    print(f"rms current density: {problem.get_val('rms_current_density')}")
-    print(f"rms current: {problem.get_val('rms_current')}")
-    print(f"stator core loss: {problem.get_val('stator_core_loss')}")
-    print(f"stator max flux: {problem.get_val('max_flux_magnitude:stator')}")
-    print(f"stator volume: {problem.get_val('stator_volume')}")
-    print(f"stator mass: {problem.get_val('stator_mass')}")
-    print(f"airgap avg flux: {problem.get_val('average_flux_magnitude:airgap')}")
+        # Set the temperature field for the EM solver
+        temp_size = EMSolver.getFieldSize("temperature")
+        temperature = np.zeros(temp_size)
+        temperature_func = lambda x: T0[i]+T_mult[i]*np.linalg.norm(x)**x_exp[i]
+        EMSolver.setState(temperature_func, temperature, "temperature")
 
-    problem.model.list_outputs(residuals=True, units=True, prom_name=True)
+        try:
+            ThermalSolver.setState(temperature_func, temperature, "state")
+        except:
+            a=1 # Do nothing (uncoupled, no thermal solver)
+
+        problem.run_model()
+        # If want to see flux magnitude, again do problem.run_model() (uncomment the below line)
+        # problem.run_model()
+        
+        print(f"Power out: {problem.get_val('power_out')}")
+        print(f"efficiency: {problem.get_val('efficiency')}")
+        print(f"avg torque: {problem.get_val('average_torque')}")
+        print(f"ac loss: {problem.get_val('ac_loss')}")
+        print(f"dc loss: {problem.get_val('dc_loss')}")
+        print(f"rms current density: {problem.get_val('rms_current_density')}")
+        print(f"rms current: {problem.get_val('rms_current')}")
+        print(f"stator core loss: {problem.get_val('stator_core_loss')}")
+        print(f"stator max flux: {problem.get_val('max_flux_magnitude:stator')}")
+        print(f"stator volume: {problem.get_val('stator_volume')}")
+        print(f"stator mass: {problem.get_val('stator_mass')}")
+        print(f"airgap avg flux: {problem.get_val('average_flux_magnitude:airgap')}")
+        
+        problem.model.list_outputs(residuals=True, units=True, prom_name=True)
+
+        # Obtain the core losses for the current iteration
+        CoreLosses[i] = problem.get_val('stator_core_loss')
+
+    # Print the results of running the code multiple times
+    print("constTempCoreLosses:")
+    for i in range(np.size(CoreLosses)):
+        print(f"T = {T0[i]}+{T_mult[i]}*np.linalg.norm(x)**{x_exp[i]}, Stator Core Loss = {CoreLosses[i]}")

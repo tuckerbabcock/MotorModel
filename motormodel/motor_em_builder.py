@@ -51,6 +51,7 @@ class EMMotorCouplingGroup(om.Group):
         self.solvers = self.options["solvers"]
         depends = self.options["state_depends"]
         self.check_partials = self.options["check_partials"]
+        coupled = self.options["coupled"]
 
         # em_states = self.add_subsystem("em_states", om.ParallelGroup())
         em_states = self.add_subsystem("em_states", om.Group())
@@ -73,9 +74,18 @@ class EMMotorCouplingGroup(om.Group):
         for idx, _ in enumerate(self.solvers):
             self.connect(f"em_states.solver{idx}.flux_magnitude", f"peak_flux.data{idx}")
 
-        coupled = self.options["coupled"]
+        # TODO: Apply the DiscreteInducedExponential to the permanent magnet demagnetization constraints
+        # self.add_subsystem("pm_demag_field",
+        #                    DiscreteInducedExponential(num_pts=len(self.solvers),
+        #                                               rho=10),
+        #                    promotes_outputs=[("data_amplitude", "pm_demag_field")])
+        
+        # # TODO: Temporarily, C(B,T)=B. Need to change to make C(B,T)=what it is supposed to be
+        # for idx, _ in enumerate(self.solvers):
+        #     self.connect(f"em_states.solver{idx}.flux_magnitude", f"pm_demag_field.data{idx}")
+
         # If coupling to thermal solver, compute heat sources...
-        if coupled == "thermal":
+        if coupled == "thermal" or coupled == "thermal_full": # TODO: Change conditional logic to separate one way and fully coupled
             # self.add_subsystem("stator_max_flux_magnitude",
             #                    MachFunctional(solver=self.solvers[0],
             #                                   func="max_flux_magnitude:stator",
@@ -85,20 +95,27 @@ class EMMotorCouplingGroup(om.Group):
             #                                     ("state", "em_state0")],
             #                    promotes_outputs=["max_flux_magnitude:stator"])
             stator_attrs = self.solvers[0].getOptions()["components"]["stator"]["attrs"]
+            # NOTE: This stator_max_flux_magnitude was not computing correctly for the coupled case (far too low). Replaced func_options logic from outputs group
             self.add_subsystem("stator_max_flux_magnitude",
                                MachFunctional(solver=self.solvers[0],
                                               func="max_state:stator",
-                                              func_options={"rho": 1, "attributes": stator_attrs},
+                                            #   func_options={"rho": 1, "attributes": stator_attrs},
+                                              func_options={
+                                                "rho": 10,
+                                                "attributes": stator_attrs,
+                                                "state": "peak_flux"
+                                              },
                                               depends=["state", "mesh_coords"]),
                                promotes_inputs=[("mesh_coords", "x_em_vol"),
                                                 ("state", "peak_flux")],
-                               promotes_outputs=["max_flux_magnitude:stator"])
+                               promotes_outputs=[("max_state:stator", "max_flux_magnitude:stator")])
 
             self.add_subsystem("wire_length",
                                WireLength(),
                                promotes_inputs=["*"],
                                promotes_outputs=["wire_length"])
 
+            
             heat_source_inputs = [("mesh_coords", "x_em_vol"),
                                   "frequency",
                                   "max_flux_magnitude:stator",
@@ -111,17 +128,36 @@ class EMMotorCouplingGroup(om.Group):
                                   "model_depth",
                                   "num_turns",
                                   "num_slots"]
+            if coupled == "thermal_full":
+                heat_source_inputs.append("temperature")            
+
+            # Error handling here in case the option to use CAL2 or Steinmetz bool does not exist
+            try:
+                UseCAL2forCoreLoss=self.solvers[0].getOptions()["UseCAL2forCoreLoss"]
+            except:
+                UseCAL2forCoreLoss=False # defaulting to False (meaning don't use CAL2, rather use Steinmetz)
+            
             self.add_subsystem("heat_source",
                                MachFunctional(solver=self.solvers[0],
                                               func="heat_source",
                                               func_options={"space-dis": {
                                                                 "basis-type": "h1",
                                                                 "degree": 1
-                                                            }},
+                                                            },
+                                                            "UseCAL2forCoreLoss": UseCAL2forCoreLoss},
                                               depends=heat_source_inputs),
                                promotes_inputs=heat_source_inputs,
                                promotes_outputs=[("heat_source", "thermal_load")])
 
+        # NOTE:s for "thermal_full" coupling
+            # TODO: Use temperature as an input for one thing
+    
+            # Temperature will need to be an input for:
+            #   The heat source subsystem
+            #   The state subsystem
+            #   The other affected subsystems I believe will not need temperature directly as input
+            # Will need to make sure the promoted variable names are correct
+                                 
         elif coupled is not None:
             raise ValueError("EM Motor builder only supports coupling with a thermal solver")
 
@@ -299,7 +335,7 @@ class EMMotorOutputsGroup(om.Group):
 
         coupled = self.options["coupled"]
         # If not coupling to thermal solver, compute stator max flux here post coupling
-        if coupled != "thermal":
+        if coupled != "thermal" and coupled != "thermal_full": # TODO: Change conditional logic to separate one way and fully coupled
             stator_attrs = self.solvers[0].getOptions()["components"]["stator"]["attrs"]
             # self.add_subsystem("stator_max_flux_magnitude",
             #                     MachFunctional(solver=self.solvers[0],
@@ -328,8 +364,15 @@ class EMMotorOutputsGroup(om.Group):
                              "frequency",
                              "max_flux_magnitude:stator"]
 
+        # Error handling here in case the option to use CAL2 or Steinmetz bool does not exist
+        try:
+            UseCAL2forCoreLoss=self.solvers[0].getOptions()["UseCAL2forCoreLoss"]
+        except:
+            UseCAL2forCoreLoss=False # defaulting to False (meaning don't use CAL2, rather use Steinmetz)
+
         stator_core_loss_options = {
-            "attributes": self.solvers[0].getOptions()["components"]["stator"]["attrs"]
+            "attributes": self.solvers[0].getOptions()["components"]["stator"]["attrs"],
+            "UseCAL2forCoreLoss": UseCAL2forCoreLoss
         }
         self.add_subsystem("stator_core_loss_raw",
                            MachFunctional(solver=self.solvers[0],
@@ -382,6 +425,42 @@ class EMMotorOutputsGroup(om.Group):
         self.add_subsystem("efficiency",
                            om.ExecComp("efficiency = power_out / power_in"),
                            promotes=["*"])
+        
+        # TODO: In parallel, adding mach output for permanent magnet demagnetization constraint
+        # pm_demag_depends = ["mesh_coords",
+        #                     "peak_flux"]
+
+        # # Set the options
+        # pm_demag_options = {
+        #     "attributes": self.solvers[0].getOptions()["components"]["magnets"]["attrs"]
+        # }
+
+        # self.add_subsystem("pm_demag",
+        #                    MachFunctional(solver=self.solvers[0],
+        #                                   func="pm_demag",
+        #                                   func_options=pm_demag_options,
+        #                                   depends=pm_demag_depends,
+        #                                   check_partials=self.check_partials),
+        #                    promotes_inputs=[("mesh_coords", "x_em_vol"), *pm_demag_depends[1:]],
+        #                    promotes_outputs=["pm_demag"])
+
+        # # Adapting from stator_max_flux_magnitude mach output (when uncoupled)
+        # # TODO: Change stator to magnets
+        # magnets_attrs = self.solvers[0].getOptions()["components"]["magnets"]["attrs"]
+        # self.add_subsystem("pm_demag_magnets_max",
+        #                        MachFunctional(solver=self.solvers[0],
+        #                                       func="max_state:magnets",
+        #                                       func_options={
+        #                                         "rho": 10,
+        #                                         "attributes": magnets_attrs,
+        #                                         "state": "pm_demag_field"
+        #                                       },
+        #                                       depends=["state", "mesh_coords"],
+        #                                       check_partials=self.check_partials),
+        #                        promotes_inputs=[("mesh_coords", "x_em_vol"),
+        #                                         ("state", "pm_demag_field")],
+        #                        promotes_outputs=[("max_state:magnets", "pm_demag_max:magnets")])
+
         ###### uncomment here
 
         # rotor_core_loss_options = {
