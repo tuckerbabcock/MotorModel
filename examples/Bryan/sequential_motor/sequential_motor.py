@@ -191,7 +191,8 @@ _components = {
 }
 
 # _multipoint_rotations = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-_multipoint_rotations = [0]
+# _multipoint_rotations = [0] # use for debugging
+_multipoint_rotations = [0,2,4,6,8] # used for thesis results
 _hallbach_segments = 4
 
 class SequentialMotor(Motor):
@@ -203,6 +204,7 @@ class SequentialMotor(Motor):
                          csm_path=_csm_path,
                          multipoint_rotations=_multipoint_rotations,
                          hallbach_segments=_hallbach_segments,
-                         coupled="thermal",
+                         coupled="thermal_full",
+                        #  coupled="thermal",
                         #  coupled=None,
                          **kwargs)

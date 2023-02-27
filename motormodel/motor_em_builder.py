@@ -128,6 +128,8 @@ class EMMotorCouplingGroup(om.Group):
                                   "model_depth",
                                   "num_turns",
                                   "num_slots"]
+            
+            # TODO: Answer QUESTION: Will current logic capture the initial temperature field or will it capture the solved temperature state?
             if coupled == "thermal_full":
                 heat_source_inputs.append("temperature")            
 
@@ -525,6 +527,10 @@ class EMMotorBuilder(Builder):
                               "current_density:phaseA",
                               "current_density:phaseB",
                               "current_density:phaseC"]
+
+        # TODO: Answer QUESTION: Will current logic capture the initial temperature field or will it capture the solved temperature state?
+        if self.coupled == "thermal_full":
+                self.state_depends.append("temperature")
 
     def get_coupling_group_subsystem(self, scenario_name=None):
         return EMMotorCouplingGroup(solvers=self.solvers,

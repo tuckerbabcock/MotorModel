@@ -17,7 +17,7 @@ if __name__ == "__main__":
                 "basis-type": "h1"
             }
         },
-        "UseCAL2forCoreLoss": False
+        "UseCAL2forCoreLoss": True
     }
     problem.model = SequentialMotor(em_options=options)
 
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     EMSolver = problem.model.analysis.coupling.em.solvers[0]
     try:
         ThermalSolver = problem.model.analysis.coupling.thermal.solver
-        problem.set_val("h", 1)
+        problem.set_val("h", 250)
         problem.set_val("fluid_temp", 293.15)
     except:
         ThermalSolver = None
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # problem.set_val("tooth_tip_angle", 8.5)
 
     # Let temperature field be T(x)= T0 + T_mult*np.linalg.norm(x)**x_exp
-    T0 = np.array([293.15])#, 60+273.15, 100+273.15, 140+273.15, 20+273.15, 20+273.15, 60+273.15, 100+273.15, 20+273.15, 60+273.15, 100+273.15, 140+273.15]) 
+    T0 = np.array([373.15])#, 60+273.15, 100+273.15, 140+273.15, 20+273.15, 20+273.15, 60+273.15, 100+273.15, 20+273.15, 60+273.15, 100+273.15, 140+273.15]) 
     T_mult = np.array([0])#, 0, 0, 0, 100, -100, 60, 140, 140, 60, 100, 20])
     x_exp = np.array([0])#, 0, 0, 0, 1, 1, 1, 1, 2, 3, 4, 5])
     CoreLosses = np.zeros(np.size(T0))
@@ -70,6 +70,7 @@ if __name__ == "__main__":
         EMSolver.setState(temperature_func, temperature, "temperature")
 
         try:
+            # TODO: May need to be "conduct_state", but not a big deal if don't have
             ThermalSolver.setState(temperature_func, temperature, "state")
         except:
             a=1 # Do nothing (uncoupled, no thermal solver)

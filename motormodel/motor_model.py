@@ -120,6 +120,11 @@ class Motor(Multipoint):
         coupled = self.options["coupled"]
         # If coupling to thermal solver, compute heat sources...
         if coupled == "thermal" or coupled == "thermal_full": # TODO: Change conditional logic to separate one way and fully coupled
+            
+            thermal_flux_attributes = _thermal_options["bcs"]["convection"] # TODO: Answer QUESTION: what to put for thermal_flux boundary attributes? Attributes are in the other solver I believe
+            thermal_flux_depends = ["state",
+                                    "mesh_coords"] # TODO: Answer QUESTION: what to put for thermal_flux depends? Should just be able to list things out
+            
             thermal_builder = MachBuilder(solver_type="thermal",
                                           solver_options=_thermal_options,
                                           solver_inputs=["h", "fluid_temp", "thermal_load"],
@@ -127,8 +132,14 @@ class Motor(Multipoint):
                                         #   warper_type="MeshWarper",
                                           warper_type=None,
                                           warper_options=_warper_options,
-                                          outputs={},
-                                          check_partials=check_partials)
+                                          outputs={"thermal_flux" : {
+                                                            "options" : {
+                                                                "attributes" : thermal_flux_attributes 
+                                                            },
+                                                            "depends" : thermal_flux_depends
+                                                    }
+                                                }, # TODO: Answer QUESTION: How exactly to structure this dictionary to satisfy MachBuilder?
+                                          check_partials=check_partials)                           
             thermal_builder.initialize(self.comm)
         else:
             thermal_builder = None
