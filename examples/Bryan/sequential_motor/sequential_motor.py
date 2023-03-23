@@ -119,9 +119,9 @@ Nd2Fe14B_Demag = {
       "alpha_H_ci": -0.57,
       "H_ci_T0": -1273.0,
       "alpha_B_knee": 0.005522656,
-      "beta_B_knee": 0.064272862,
+      "beta_B_knee": -1.4442405898,
       "alpha_H_knee": 5.548346445,
-      "beta_H_knee": -1055.87196
+      "beta_H_knee": -2571.4027913402
 }
 
 # hiperco_reluctivity = {
@@ -191,8 +191,8 @@ _components = {
 }
 
 # _multipoint_rotations = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-# _multipoint_rotations = [0] # use for debugging
-_multipoint_rotations = [0,2,4,6,8] # used for thesis results
+_multipoint_rotations = [0] # use for debugging
+# _multipoint_rotations = [0,2,4,6,8] # used for thesis results
 _hallbach_segments = 4
 
 class SequentialMotor(Motor):

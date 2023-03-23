@@ -37,6 +37,15 @@ class EMStateAndFluxMagGroup(om.Group):
                                           check_partials=self.check_partials),
                            promotes_inputs=[("state", "em_state"), ("mesh_coords", "x_em_vol")],
                            promotes_outputs=["flux_magnitude"])
+        
+        # Flux density used for demagnetization proximity constraint
+        self.add_subsystem("flux_density",
+                           MachFunctional(solver=self.solver,
+                                          func="flux_density",
+                                          depends=["state", "mesh_coords"],
+                                          check_partials=self.check_partials),
+                           promotes_inputs=[("state", "em_state"), ("mesh_coords", "x_em_vol")],
+                           promotes_outputs=["flux_density"])
 
 
 class EMMotorCouplingGroup(om.Group):
@@ -74,18 +83,18 @@ class EMMotorCouplingGroup(om.Group):
         for idx, _ in enumerate(self.solvers):
             self.connect(f"em_states.solver{idx}.flux_magnitude", f"peak_flux.data{idx}")
 
-        # TODO: Apply the DiscreteInducedExponential to the permanent magnet demagnetization constraints
-        # self.add_subsystem("pm_demag_field",
-        #                    DiscreteInducedExponential(num_pts=len(self.solvers),
-        #                                               rho=10),
-        #                    promotes_outputs=[("data_amplitude", "pm_demag_field")])
+        # TODO: Apply the DiscreteInducedExponential to the proper permanent magnet demagnetization constraint field
+        self.add_subsystem("pm_demag_field",
+                           DiscreteInducedExponential(num_pts=len(self.solvers),
+                                                      rho=10),
+                           promotes_outputs=[("data_amplitude", "pm_demag_field")])
         
-        # # TODO: Temporarily, C(B,T)=B. Need to change to make C(B,T)=what it is supposed to be
-        # for idx, _ in enumerate(self.solvers):
-        #     self.connect(f"em_states.solver{idx}.flux_magnitude", f"pm_demag_field.data{idx}")
+        # TODO: Temporarily, C(B,T)=B. Need to change to make C(B,T)=what it is supposed to be
+        for idx, _ in enumerate(self.solvers):
+            self.connect(f"em_states.solver{idx}.flux_magnitude", f"pm_demag_field.data{idx}")
 
         # If coupling to thermal solver, compute heat sources...
-        if coupled == "thermal" or coupled == "thermal_full": # TODO: Change conditional logic to separate one way and fully coupled
+        if coupled == "thermal" or coupled == "thermal_full": # NOTE: Changed conditional logic to separate one way and fully coupled
             # self.add_subsystem("stator_max_flux_magnitude",
             #                    MachFunctional(solver=self.solvers[0],
             #                                   func="max_flux_magnitude:stator",
@@ -95,7 +104,7 @@ class EMMotorCouplingGroup(om.Group):
             #                                     ("state", "em_state0")],
             #                    promotes_outputs=["max_flux_magnitude:stator"])
             stator_attrs = self.solvers[0].getOptions()["components"]["stator"]["attrs"]
-            # NOTE: This stator_max_flux_magnitude was not computing correctly for the coupled case (far too low). Replaced func_options logic from outputs group
+            # NOTE: This stator_max_flux_magnitude was not computing correctly for the coupled case (far too low). Replaced func_options logic from outputs group (seemed to do the trick)
             self.add_subsystem("stator_max_flux_magnitude",
                                MachFunctional(solver=self.solvers[0],
                                               func="max_state:stator",
@@ -428,40 +437,42 @@ class EMMotorOutputsGroup(om.Group):
                            om.ExecComp("efficiency = power_out / power_in"),
                            promotes=["*"])
         
-        # TODO: In parallel, adding mach output for permanent magnet demagnetization constraint
-        # pm_demag_depends = ["mesh_coords",
-        #                     "peak_flux"]
+        # TODO: In parallel, adding mach output for permanent magnet demagnetization constraint. Adjust as needed
+        """
+        pm_demag_depends = ["mesh_coords",
+                            "peak_flux"]
 
-        # # Set the options
-        # pm_demag_options = {
-        #     "attributes": self.solvers[0].getOptions()["components"]["magnets"]["attrs"]
-        # }
+        # Set the options
+        pm_demag_options = {
+            "attributes": self.solvers[0].getOptions()["components"]["magnets"]["attrs"]
+        }
 
-        # self.add_subsystem("pm_demag",
-        #                    MachFunctional(solver=self.solvers[0],
-        #                                   func="pm_demag",
-        #                                   func_options=pm_demag_options,
-        #                                   depends=pm_demag_depends,
-        #                                   check_partials=self.check_partials),
-        #                    promotes_inputs=[("mesh_coords", "x_em_vol"), *pm_demag_depends[1:]],
-        #                    promotes_outputs=["pm_demag"])
+        self.add_subsystem("pm_demag",
+                           MachFunctional(solver=self.solvers[0],
+                                          func="pm_demag",
+                                          func_options=pm_demag_options,
+                                          depends=pm_demag_depends,
+                                          check_partials=self.check_partials),
+                           promotes_inputs=[("mesh_coords", "x_em_vol"), *pm_demag_depends[1:]],
+                           promotes_outputs=["pm_demag"])
+        """
 
-        # # Adapting from stator_max_flux_magnitude mach output (when uncoupled)
-        # # TODO: Change stator to magnets
-        # magnets_attrs = self.solvers[0].getOptions()["components"]["magnets"]["attrs"]
-        # self.add_subsystem("pm_demag_magnets_max",
-        #                        MachFunctional(solver=self.solvers[0],
-        #                                       func="max_state:magnets",
-        #                                       func_options={
-        #                                         "rho": 10,
-        #                                         "attributes": magnets_attrs,
-        #                                         "state": "pm_demag_field"
-        #                                       },
-        #                                       depends=["state", "mesh_coords"],
-        #                                       check_partials=self.check_partials),
-        #                        promotes_inputs=[("mesh_coords", "x_em_vol"),
-        #                                         ("state", "pm_demag_field")],
-        #                        promotes_outputs=[("max_state:magnets", "pm_demag_max:magnets")])
+        # TODO: Change the depends as needed
+        # Mach output for demagnetization proximity using Induced Exponential Aggregation (smooth max) function
+        magnets_attrs = self.solvers[0].getOptions()["components"]["magnets"]["attrs"]
+        self.add_subsystem("demag_proximity",
+                               MachFunctional(solver=self.solvers[0],
+                                              func="max_state:magnets",
+                                              func_options={
+                                                "rho": 10,
+                                                "attributes": magnets_attrs,
+                                                "state": "demag_proximity"
+                                              },
+                                              depends=["state", "mesh_coords"], #"flux_density"], including flux density as a depends causes B to be [1,1] exclusively in mach
+                                              check_partials=self.check_partials),
+                               promotes_inputs=[("mesh_coords", "x_em_vol"),
+                                                ("state", "pm_demag_field")],
+                               promotes_outputs=[("max_state:magnets", "demag_proximity_max:magnets")])
 
         ###### uncomment here
 
