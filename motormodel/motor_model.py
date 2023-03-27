@@ -150,9 +150,11 @@ class Motor(Multipoint):
                                "ac_loss",
                                "dc_loss",
                                "stator_core_loss",
+                               "rotor_core_loss",
                                "total_loss",
                                "stator_mass",
                                "max_flux_magnitude:stator",
+                               "max_flux_magnitude:rotor",
                             #    "max_flux_magnitude:winding",
                                "stator_volume",
                                "average_flux_magnitude:airgap",
@@ -160,7 +162,8 @@ class Motor(Multipoint):
                                "rms_current",
                                "efficiency",
                                "power_out",
-                               "power_in"
+                               "power_in",
+                               "fill_factor",
                                ]
                      )
 

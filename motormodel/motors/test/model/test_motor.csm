@@ -1,0 +1,54 @@
+# Design Parameters:
+#despmtr     stator_od            206.689 # 0.133977 #0.15645 #0.166 bigger motor #0.15645 reference motor
+#despmtr     stator_id            188.171 # 0.10607413 #0.12450 #0.134 bigger motor #0.12450 reference motor
+#despmtr     rotor_od             181.987 # 0.09886467 #0.11370 #0.1232 bigger motor #0.11370 reference motor
+#despmtr     rotor_id             176.308 # 0.09401266 #0.11125 #0.12075 bigger motor #0.11125 reference motor
+#despmtr     slot_depth           6.81009 # 0.01085901 #0.01110
+#despmtr     tooth_width          4.73271 # 0.00404333 #0.00430 #0.005 bigger motor #0.00430 reference motor
+#despmtr     magnet_thickness     2.092 # 0.00260473 #0.00440
+#despmtr     tooth_tip_thickness  0.816392 # 0.001 #0.001
+#despmtr     tooth_tip_angle      1.0 #10.0
+#despmtr     slot_radius          2.5 #0.001
+#despmtr     shoe_spacing         2.5 #0.0035
+
+despmtr     stator_od            0.206689 # 0.133977 #0.15645 #0.166 bigger motor #0.15645 reference motor
+despmtr     stator_id            0.188171 # 0.10607413 #0.12450 #0.134 bigger motor #0.12450 reference motor
+despmtr     rotor_od             0.181987 # 0.09886467 #0.11370 #0.1232 bigger motor #0.11370 reference motor
+despmtr     rotor_id             0.176308 # 0.09401266 #0.11125 #0.12075 bigger motor #0.11125 reference motor
+despmtr     slot_depth           0.00681009 # 0.01085901 #0.01110
+despmtr     tooth_width          0.00473271 # 0.00404333 #0.00430 #0.005 bigger motor #0.00430 reference motor
+despmtr     magnet_thickness     0.002092 # 0.00260473 #0.00440
+despmtr     tooth_tip_thickness  0.000816392 # 0.001 #0.001
+despmtr     tooth_tip_angle      1.0 #10.0
+despmtr     slot_radius          0.0025 #0.001
+despmtr     shoe_spacing         0.0025 #0.0035
+
+# Configuration Parameters:
+cfgpmtr     num_magnets          40.00000
+cfgpmtr     magnet_divisions     2.0
+cfgpmtr     num_slots            24.00000
+cfgpmtr     heatsink_thickness   0.075
+cfgpmtr     shaft_thickness      0.05
+
+# Constant Parameters:
+conpmtr     rotor_rotation       -4.5
+
+conpmtr   DumpEgads 0
+
+# Global Attributes:
+attribute capsAIM $egadsTessAIM;aflr4AIM;tetgenAIM;pumiAIM
+attribute capsMeshLength 1
+
+UDPRIM $/tooth2D
+ store     tooth   0   0
+
+UDPRIM $/tooth_assembly2D_true
+ store     tooth_assembly   0   0
+
+UDPRIM $/stator_assembly2D_true
+  store     stator_assembly   0   0
+
+UDPRIM $/rotor_assembly2D_true
+  store     rotor_assembly   0   0
+
+UDPRIM $/airgap2D_true

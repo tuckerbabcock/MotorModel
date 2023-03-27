@@ -1,0 +1,108 @@
+INTERFACE . ALL
+# Branches:
+
+# cylinder  0   0   0   0   0   1   rotor_id/2
+# extract 4
+# cylinder  0   0   0   0   0   1   rotor_id/2-shaft_thickness
+# extract 4
+# subtract  none   1   0
+#   attribute _name $shaft
+# 
+# select face
+#    attribute capsGroup $shaft
+#    attribute capsMesh $shaft
+#    attribute AFLR_GBC   $STD_UG3_GBC
+#    attribute .tParams 0.000875;0.5;15
+#    #attribute .tParams 0.625;0.5;15
+#    attribute _color "0.5;0.5;0.5" #grey
+#    attribute _bcolor "0.5;0.5;0.5" #grey
+# 
+# store     shaft   0   0
+
+cylinder  0   0   0   0   0   1   rotor_od/2
+extract 4
+cylinder  0   0   0   0   0   1   rotor_id/2
+extract 4
+subtract  none   1   0
+  attribute _name $rotor_yoke
+
+select face
+   attribute capsGroup $rotor
+   attribute capsMesh $rotor
+   attribute AFLR_GBC   $STD_UG3_GBC
+   #attribute .tParams 0.0005;0.5;15 #0.000625
+   #attribute .tParams 0.001;0.5;15
+   #attribute .tParams 0.0025;0.5;15
+   #attribute .tParams 2.5;0.5;15
+   attribute _color $cyan
+   attribute _bcolor $cyan
+
+# restore shaft
+# union # rotor_yoke with shaft
+#   attribute _name $rotor
+
+store     rotor_yoke   0   0
+
+set magnet_angle 360/(num_magnets*magnet_divisions)
+box 0 rotor_od/2 0 0 magnet_thickness 0
+revolve   0   0   0   0   0   1   magnet_angle
+   attribute _color $green
+   attribute _bcolor $green
+   attribute _name $magnet
+   #attribute .tParams 0.00025;0.5;15 #0.000375
+   #attribute .tParams 0.000375;0.5;15
+   #attribute .tParams 0.0025;0.5;15
+   #attribute .tParams 2.5;0.5;15
+   attribute capsGroup $magnets
+   attribute capsMesh $magnets
+
+store magnet
+restore   magnet   0
+
+restore   magnet   0
+set name val2str(1,0)+$_magnet
+store !name 0   0
+
+set log_n floor(log(num_magnets*magnet_divisions)/log(2))
+patbeg i log_n
+   set n 2^(i-1)
+
+   set name val2str(n,0)+$_magnet
+   restore !name
+
+   rotatez   n*360/(num_magnets*magnet_divisions)   0   0
+   union     0   0   0
+
+   set np1 2^(i)
+
+   set name val2str(np1,0)+$_magnet
+   store !name
+   restore !name
+patend
+
+set numer num_magnets*magnet_divisions
+
+set offset 0
+patbeg i log_n
+   set n 2^(i-1)
+
+   set rem mod(numer,2)
+   ifthen rem EQ 1
+      set name val2str(n,0)+$_magnet
+      restore !name
+      set offset offset+n
+
+      rotatez   -offset*360/(num_magnets*magnet_divisions)   0   0
+      union     0   0   0
+
+   endif
+   set numer int(numer/2)
+patend
+
+rotatez rotor_rotation 0 0
+
+restore   rotor_yoke   0
+union # magnets with rotor_yoke
+  attribute _name $rotor_assembly
+
+end

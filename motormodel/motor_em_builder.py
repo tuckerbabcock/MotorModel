@@ -158,7 +158,9 @@ class EMMotorPrecouplingGroup(om.Group):
                            promotes_inputs=["*"],
                            promotes_outputs=["rms_current",
                                              "current_density",
-                                             "three_phase*.current_density:phase*"])
+                                             "three_phase*.current_density:phase*",
+                                             "fill_factor",
+                                             ])
 
 class EMMotorOutputsGroup(om.Group):
     """
@@ -324,24 +326,58 @@ class EMMotorOutputsGroup(om.Group):
                                                 ("state", "peak_flux")],
                                promotes_outputs=[("max_state:stator", "max_flux_magnitude:stator")])
 
-        core_loss_depends = ["mesh_coords",
-                             "frequency",
-                             "max_flux_magnitude:stator"]
+            rotor_attrs = self.solvers[0].getOptions()["components"]["rotor"]["attrs"]
+            self.add_subsystem("rotor_max_flux_magnitude",
+                               MachFunctional(solver=self.solvers[0],
+                                              func="max_state:rotor",
+                                              func_options={
+                                                "rho": 10,
+                                                "attributes": rotor_attrs,
+                                                "state": "peak_flux"
+                                              },
+                                              depends=["state", "mesh_coords"],
+                                              check_partials=self.check_partials),
+                               promotes_inputs=[("mesh_coords", "x_em_vol"),
+                                                ("state", "peak_flux")],
+                               promotes_outputs=[("max_state:rotor", "max_flux_magnitude:rotor")])
+
+        stator_core_loss_depends = ["mesh_coords",
+                                    "frequency",
+                                    "max_flux_magnitude:stator"]
 
         stator_core_loss_options = {
             "attributes": self.solvers[0].getOptions()["components"]["stator"]["attrs"]
         }
         self.add_subsystem("stator_core_loss_raw",
                            MachFunctional(solver=self.solvers[0],
-                                          func="core_loss",
+                                          func="core_loss:stator",
                                           func_options=stator_core_loss_options,
-                                          depends=core_loss_depends,
+                                          depends=stator_core_loss_depends,
                                           check_partials=self.check_partials),
-                           promotes_inputs=[("mesh_coords", "x_em_vol"), *core_loss_depends[1:]],
-                           promotes_outputs=[("core_loss", "stator_core_loss_raw")])
+                           promotes_inputs=[("mesh_coords", "x_em_vol"), *stator_core_loss_depends[1:]],
+                           promotes_outputs=[("core_loss:stator", "stator_core_loss_raw")])
 
         self.add_subsystem("stator_core_loss",
                            om.ExecComp("stator_core_loss = stator_core_loss_raw * stack_length / model_depth"),
+                           promotes=["*"])
+
+        rotor_core_loss_depends = ["mesh_coords",
+                                   "frequency",
+                                   "max_flux_magnitude:rotor"]
+        rotor_core_loss_options = {
+            "attributes": self.solvers[0].getOptions()["components"]["rotor"]["attrs"]
+        }
+        self.add_subsystem("rotor_core_loss_raw",
+                           MachFunctional(solver=self.solvers[0],
+                                          func="core_loss:rotor",
+                                          func_options=rotor_core_loss_options,
+                                          depends=rotor_core_loss_depends,
+                                          check_partials=self.check_partials),
+                           promotes_inputs=[("mesh_coords", "x_em_vol"), *rotor_core_loss_depends[1:]],
+                           promotes_outputs=[("core_loss:rotor", "rotor_core_loss_raw")])
+
+        self.add_subsystem("rotor_core_loss",
+                           om.ExecComp("rotor_core_loss = rotor_core_loss_raw * stack_length / model_depth"),
                            promotes=["*"])
 
         self.add_subsystem("stator_mass_raw",
@@ -371,7 +407,7 @@ class EMMotorOutputsGroup(om.Group):
                            promotes=["*"])
 
         self.add_subsystem("total_loss",
-                           om.ExecComp("total_loss = ac_loss + dc_loss + stator_core_loss"),
+                           om.ExecComp("total_loss = ac_loss + dc_loss + stator_core_loss + rotor_core_loss"),
                            promotes=["*"])
         self.add_subsystem("power_out",
                            om.ExecComp("power_out = average_torque * rpm * pi / 30"),

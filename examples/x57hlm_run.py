@@ -37,6 +37,7 @@ if __name__ == "__main__":
     # problem.set_val("fluid_temp", 0)
 
     problem.run_model()
+    problem.run_model()
 
     print(f"Power out: {problem.get_val('power_out')}")
     print(f"efficiency: {problem.get_val('efficiency')}")
