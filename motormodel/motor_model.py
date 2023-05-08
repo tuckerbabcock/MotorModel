@@ -119,26 +119,32 @@ class Motor(Multipoint):
 
         coupled = self.options["coupled"]
         # If coupling to thermal solver, compute heat sources...
-        if coupled == "thermal" or coupled == "thermal_full": # TODO: Change conditional logic to separate one way and fully coupled
+        if coupled == "thermal" or coupled == "thermal:feedforward":
             
-            thermal_flux_attributes = _thermal_options["bcs"]["convection"] # TODO: Answer QUESTION: what to put for thermal_flux boundary attributes? Attributes are in the other solver I believe
+            thermal_flux_attributes = _thermal_options["bcs"]["flux"] # TODO: Answer QUESTION: what to put for thermal_flux boundary attributes? Attributes are in the other solver I believe
+            # thermal_flux_attributes = _thermal_options["bcs"]["essential"] # TODO: Answer QUESTION: what to put for thermal_flux boundary attributes? Attributes are in the other solver I believe
             thermal_flux_depends = ["state",
                                     "mesh_coords"] # TODO: Answer QUESTION: what to put for thermal_flux depends? Should just be able to list things out
             
             thermal_builder = MachBuilder(solver_type="thermal",
                                           solver_options=_thermal_options,
                                           solver_inputs=["h", "fluid_temp", "thermal_load"],
-                                        # TODO: Determine if this is OK
-                                        #   warper_type="MeshWarper",
                                           warper_type=None,
                                           warper_options=_warper_options,
-                                          outputs={"thermal_flux" : {
-                                                            "options" : {
-                                                                "attributes" : thermal_flux_attributes 
-                                                            },
-                                                            "depends" : thermal_flux_depends
-                                                    }
-                                                }, # TODO: Answer QUESTION: How exactly to structure this dictionary to satisfy MachBuilder?
+                                          outputs={
+                                                # "thermal_flux" : {
+                                                #     "options" : {
+                                                #         "attributes" : thermal_flux_attributes 
+                                                #     },
+                                                #     "depends" : thermal_flux_depends
+                                                # },
+                                                "max_state": {
+                                                    "options": {
+                                                        "rho": 10.0
+                                                    },
+                                                    "depends": ['state', 'mesh_coords']
+                                                }
+                                            },
                                           check_partials=check_partials)                           
             thermal_builder.initialize(self.comm)
         else:
@@ -169,7 +175,7 @@ class Motor(Multipoint):
                                "stator_core_loss",
                                "total_loss",
                                "stator_mass",
-                               "max_flux_magnitude:stator",
+                            #    "max_flux_magnitude:stator",
                             #    "max_flux_magnitude:winding",
                                "stator_volume",
                                "average_flux_magnitude:airgap",
@@ -177,7 +183,9 @@ class Motor(Multipoint):
                                "rms_current",
                                "efficiency",
                                "power_out",
-                               "power_in"
+                               "power_in",
+                               'max_state',
+                               "fill_factor"
                                ]
                      )
 
@@ -189,7 +197,7 @@ class Motor(Multipoint):
             print("x_surf_metadata: ", x_surf_metadata)
             x_surf_size = x_surf_metadata['size']
             self.connect("x_surf", "x_em_vol", src_indices=[i for i in range(x_surf_size) if (i+1) % 3 != 0 ])
-            if coupled=="thermal" or coupled == "thermal_full": # TODO: Change conditional logic to separate one way and fully coupled
+            if coupled == "thermal" or coupled == "thermal:feedforward":
                 self.connect("x_surf", "x_conduct_vol", src_indices=[i for i in range(x_surf_size) if (i+1) % 3 != 0 ])
         else:
             self.connect("x_surf", "x_em")

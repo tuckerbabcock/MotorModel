@@ -123,6 +123,7 @@ def _buildSolverOptions(components,
     if two_dimensional:
         basis = "h1"
         prec = "hypreboomeramg"
+        # prec = "hypreilu"
     else:
         basis = "nedelec"
         prec = "hypreams"
@@ -186,7 +187,8 @@ def _buildSolverOptions(components,
         },
         "lin-prec": {
             "type": prec,
-            "printlevel": -1
+            "printlevel": -1,
+            "lev-fill": 10
         },
         "components": components,
         "current": current_options,
@@ -229,7 +231,7 @@ def _buildSolverOptions(components,
             "printlevel": -1
         },
         "components": components,
-        "bcs": {
+        # "bcs": {
             # "convection": [1047, 1060, 1081,
             #                1094, 1115, 1128,
             #                1149, 1162, 1183,
@@ -248,14 +250,14 @@ def _buildSolverOptions(components,
             #                992, 1013, 1026], # results in mfem error (attributes that don't exist, outside of range)
             # "convection": [2, 11, 21], # results in nan when run thermal problem
             # "convection": [602, 603, 617, 618], # results in nan when run thermal problem
-            "convection": [2, 11, 21, 371, 378, 386, 400, 401, 
-                        415, 416, 430, 431, 445, 446, 453, 467, 
-                        468, 482, 483, 497, 498, 512, 513, 527, 
-                        528, 542, 543, 557, 558, 572, 573, 587, 
-                        588, 602, 603, 617, 618, 632, 633, 647, 
-                        648, 662, 663, 677, 678, 692, 693, 706]
+            # "convection": [2, 11, 21, 371, 378, 386, 400, 401, 
+            #             415, 416, 430, 431, 445, 446, 453, 467, 
+            #             468, 482, 483, 497, 498, 512, 513, 527, 
+            #             528, 542, 543, 557, 558, 572, 573, 587, 
+            #             588, 602, 603, 617, 618, 632, 633, 647, 
+            #             648, 662, 663, 677, 678, 692, 693, 706]
             # "convection" : [1109, 1110]
-        },
+        # },
         # "external-fields": {
         #     "thermal_load"
         # }

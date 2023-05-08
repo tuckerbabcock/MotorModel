@@ -82,6 +82,7 @@ class DCLoss(om.Group):
                            promotes_outputs=["wire_length"])
 
         dc_loss_depends = ["mesh_coords",
+                           "temperature",
                            "rms_current",
                            "strand_radius",
                            "strands_in_hand",

@@ -216,15 +216,16 @@ class MotorCurrent(om.Group):
                            promotes_outputs=["rms_current"])
         self.connect("copper_area.strand_area", "rms_current.strand_area")
 
-        self.add_subsystem("fill_factor", om.ExecComp("fill_factor = copper_area / slot_area"))
+        self.add_subsystem("fill_factor", om.ExecComp("fill_factor = copper_area / slot_area"),
+                           promotes_outputs=["fill_factor"])
         self.connect("slot_area", "fill_factor.slot_area")
         self.connect("copper_area.copper_area", "fill_factor.copper_area")
 
         self.add_subsystem("current_density",
                            om.ExecComp("current_density = rms_current_density * power(2, 1./2) * fill_factor"),
-                           promotes_inputs=["rms_current_density"],
+                           promotes_inputs=["rms_current_density", "fill_factor"],
                            promotes_outputs=["current_density"])
-        self.connect("fill_factor.fill_factor", "current_density.fill_factor")
+        # self.connect("fill_factor.fill_factor", "current_density.fill_factor")
 
         if isinstance(theta_e, list):
             three_phase = self.add_subsystem("three_phase", om.Group())

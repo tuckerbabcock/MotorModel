@@ -38,14 +38,14 @@ class EMStateAndFluxMagGroup(om.Group):
                            promotes_inputs=[("state", "em_state"), ("mesh_coords", "x_em_vol")],
                            promotes_outputs=["flux_magnitude"])
         
-        # Flux density used for demagnetization proximity constraint
-        self.add_subsystem("flux_density",
-                           MachFunctional(solver=self.solver,
-                                          func="flux_density",
-                                          depends=["state", "mesh_coords"],
-                                          check_partials=self.check_partials),
-                           promotes_inputs=[("state", "em_state"), ("mesh_coords", "x_em_vol")],
-                           promotes_outputs=["flux_density"])
+        # # Flux density used for demagnetization proximity constraint
+        # self.add_subsystem("flux_density",
+        #                    MachFunctional(solver=self.solver,
+        #                                   func="flux_density",
+        #                                   depends=["state", "mesh_coords"],
+        #                                   check_partials=self.check_partials),
+        #                    promotes_inputs=[("state", "em_state"), ("mesh_coords", "x_em_vol")],
+        #                    promotes_outputs=["flux_density"])
 
 
 class EMMotorCouplingGroup(om.Group):
@@ -62,6 +62,11 @@ class EMMotorCouplingGroup(om.Group):
         self.check_partials = self.options["check_partials"]
         coupled = self.options["coupled"]
 
+        if coupled != "thermal":
+            temperature_name = "reference_temperature"
+        else:
+            temperature_name = "temperature"
+
         # em_states = self.add_subsystem("em_states", om.ParallelGroup())
         em_states = self.add_subsystem("em_states", om.Group())
         for idx, solver in enumerate(self.solvers):
@@ -71,8 +76,9 @@ class EMMotorCouplingGroup(om.Group):
                                                            check_partials=self.check_partials))
 
             self.promotes("em_states",
-                          inputs=[*[f"solver{idx}.{input}" for input in depends[1:]],
-                                   (f"solver{idx}.x_em_vol", "x_em_vol")],
+                          inputs=[(f"solver{idx}.x_em_vol", "x_em_vol"),
+                                  (f"solver{idx}.temperature", temperature_name),
+                                  *[f"solver{idx}.{input}" for input in depends[2:]]],
                           outputs=[(f"solver{idx}.em_state", f"em_state{idx}")])
 
         self.add_subsystem("peak_flux",
@@ -83,18 +89,8 @@ class EMMotorCouplingGroup(om.Group):
         for idx, _ in enumerate(self.solvers):
             self.connect(f"em_states.solver{idx}.flux_magnitude", f"peak_flux.data{idx}")
 
-        # TODO: Apply the DiscreteInducedExponential to the proper permanent magnet demagnetization constraint field
-        self.add_subsystem("pm_demag_field",
-                           DiscreteInducedExponential(num_pts=len(self.solvers),
-                                                      rho=10),
-                           promotes_outputs=[("data_amplitude", "pm_demag_field")])
-        
-        # TODO: Temporarily, C(B,T)=B. Need to change to make C(B,T)=what it is supposed to be
-        for idx, _ in enumerate(self.solvers):
-            self.connect(f"em_states.solver{idx}.flux_magnitude", f"pm_demag_field.data{idx}")
-
         # If coupling to thermal solver, compute heat sources...
-        if coupled == "thermal" or coupled == "thermal_full": # NOTE: Changed conditional logic to separate one way and fully coupled
+        if coupled == "thermal" or coupled == "thermal:feedforward":
             # self.add_subsystem("stator_max_flux_magnitude",
             #                    MachFunctional(solver=self.solvers[0],
             #                                   func="max_flux_magnitude:stator",
@@ -103,31 +99,35 @@ class EMMotorCouplingGroup(om.Group):
             #                    promotes_inputs=[("mesh_coords", "x_em_vol"),
             #                                     ("state", "em_state0")],
             #                    promotes_outputs=["max_flux_magnitude:stator"])
+
+            # self.add_subsystem("stator_max_flux_magnitude",
+            #                    MachFunctional(solver=self.solvers[0],
+            #                                   func="max_state:stator",
+            #                                   func_options={
+            #                                     "rho": 10,
+            #                                     "attributes": stator_attrs,
+            #                                     "state": "peak_flux"
+            #                                   },
+            #                                   depends=["state", "mesh_coords"]),
+            #                    promotes_inputs=[("mesh_coords", "x_em_vol"),
+            #                                     ("state", "peak_flux")],
+            #                    promotes_outputs=[("max_state:stator", "max_flux_magnitude:stator")])
+
+            # self.add_subsystem("wire_length",
+            #                    WireLength(),
+            #                    promotes_inputs=["*"],
+            #                    promotes_outputs=["wire_length"])
+
+
             stator_attrs = self.solvers[0].getOptions()["components"]["stator"]["attrs"]
-            # NOTE: This stator_max_flux_magnitude was not computing correctly for the coupled case (far too low). Replaced func_options logic from outputs group (seemed to do the trick)
-            self.add_subsystem("stator_max_flux_magnitude",
-                               MachFunctional(solver=self.solvers[0],
-                                              func="max_state:stator",
-                                            #   func_options={"rho": 1, "attributes": stator_attrs},
-                                              func_options={
-                                                "rho": 10,
-                                                "attributes": stator_attrs,
-                                                "state": "peak_flux"
-                                              },
-                                              depends=["state", "mesh_coords"]),
-                               promotes_inputs=[("mesh_coords", "x_em_vol"),
-                                                ("state", "peak_flux")],
-                               promotes_outputs=[("max_state:stator", "max_flux_magnitude:stator")])
+            # rotor_attrs = self.solvers[0].getOptions()["components"]["rotor"]["attrs"]
+            rotor_attrs = []
+            winding_attrs = self.solvers[0].getOptions()["components"]["windings"]["attrs"]
 
-            self.add_subsystem("wire_length",
-                               WireLength(),
-                               promotes_inputs=["*"],
-                               promotes_outputs=["wire_length"])
-
-            
             heat_source_inputs = [("mesh_coords", "x_em_vol"),
+                                  ("temperature", temperature_name),
                                   "frequency",
-                                  "max_flux_magnitude:stator",
+                                #   "max_flux_magnitude:stator", # going to use CAL model for Aviation paper
                                   "wire_length",
                                   "rms_current",
                                   "strand_radius",
@@ -137,37 +137,24 @@ class EMMotorCouplingGroup(om.Group):
                                   "model_depth",
                                   "num_turns",
                                   "num_slots"]
-            
-            # TODO: Answer QUESTION: Will current logic capture the initial temperature field or will it capture the solved temperature state?
-            if coupled == "thermal_full":
-                heat_source_inputs.append("temperature")            
-
-            # Error handling here in case the option to use CAL2 or Steinmetz bool does not exist
-            try:
-                UseCAL2forCoreLoss=self.solvers[0].getOptions()["UseCAL2forCoreLoss"]
-            except:
-                UseCAL2forCoreLoss=False # defaulting to False (meaning don't use CAL2, rather use Steinmetz)
-            
             self.add_subsystem("heat_source",
                                MachFunctional(solver=self.solvers[0],
                                               func="heat_source",
-                                              func_options={"space-dis": {
-                                                                "basis-type": "h1",
-                                                                "degree": 1
-                                                            },
-                                                            "UseCAL2forCoreLoss": UseCAL2forCoreLoss},
-                                              depends=heat_source_inputs),
+                                              func_options={
+                                                  "dc_loss": {
+                                                      "attributes": winding_attrs
+                                                  },
+                                                  "ac_loss": {
+                                                      "attributes": winding_attrs
+                                                  },
+                                                  "core_loss": {
+                                                      "attributes": [*stator_attrs, *rotor_attrs]
+                                                  },
+                                              },
+                                              depends=heat_source_inputs,
+                                              check_partials=self.check_partials),
                                promotes_inputs=heat_source_inputs,
                                promotes_outputs=[("heat_source", "thermal_load")])
-
-        # NOTE:s for "thermal_full" coupling
-            # TODO: Use temperature as an input for one thing
-    
-            # Temperature will need to be an input for:
-            #   The heat source subsystem
-            #   The state subsystem
-            #   The other affected subsystems I believe will not need temperature directly as input
-            # Will need to make sure the promoted variable names are correct
                                  
         elif coupled is not None:
             raise ValueError("EM Motor builder only supports coupling with a thermal solver")
@@ -182,11 +169,13 @@ class EMMotorPrecouplingGroup(om.Group):
     def initialize(self):
         self.options.declare("solvers", types=list, recordable=False)
         self.options.declare("warper", recordable=False)
+        self.options.declare("coupled", default=False)
         self.options.declare("scenario_name", default=None)
 
     def setup(self):
         self.solvers = self.options["solvers"]
         self.warper = self.options["warper"]
+        coupled = self.options["coupled"]
 
         # # Promote variables with physics-specific tag that MPhys expects
         if isinstance(self.warper, MeshWarper):
@@ -205,7 +194,15 @@ class EMMotorPrecouplingGroup(om.Group):
                            promotes_inputs=["*"],
                            promotes_outputs=["rms_current",
                                              "current_density",
-                                             "three_phase*.current_density:phase*"])
+                                             "three_phase*.current_density:phase*",
+                                             "fill_factor"])
+
+        # If coupling to thermal solver, compute wire length for heat sources to use
+        if coupled == "thermal" or coupled == "thermal:feedforward":
+            self.add_subsystem("wire_length",
+                               WireLength(),
+                               promotes_inputs=["*"],
+                               promotes_outputs=["wire_length"])
 
 class EMMotorOutputsGroup(om.Group):
     """
@@ -220,6 +217,13 @@ class EMMotorOutputsGroup(om.Group):
     def setup(self):
         self.solvers = self.options["solvers"]
         self.check_partials = self.options["check_partials"]
+
+        coupled = self.options["coupled"]
+
+        if coupled != "thermal":
+            temperature_name = "reference_temperature"
+        else:
+            temperature_name = "temperature"
 
         # em_functionals = self.add_subsystem("em_functionals", om.ParallelGroup())
         torque = self.add_subsystem("torque", om.Group())
@@ -294,6 +298,7 @@ class EMMotorOutputsGroup(om.Group):
                            promotes_outputs=["average_flux_magnitude:airgap"])
 
         ac_loss_depends = ["mesh_coords",
+                           "temperature",
                            "stack_length",
                            "frequency",
                            "peak_flux",
@@ -310,7 +315,7 @@ class EMMotorOutputsGroup(om.Group):
                                           func_options={"attributes": winding_attrs},
                                           depends=ac_loss_depends,
                                           check_partials=self.check_partials),
-                           promotes_inputs=[("mesh_coords", "x_em_vol"), *ac_loss_depends[1:]],
+                           promotes_inputs=[("mesh_coords", "x_em_vol"), ("temperature", temperature_name), *ac_loss_depends[2:]],
                            promotes_outputs=["ac_loss"])
 
         self.add_subsystem("dc_loss",
@@ -326,7 +331,8 @@ class EMMotorOutputsGroup(om.Group):
                                             "stack_length",
                                             "rms_current",
                                             "strand_radius",
-                                            "strands_in_hand"],
+                                            "strands_in_hand",
+                                            ("temperature", temperature_name)],
                            promotes_outputs=["*"])
 
 
@@ -344,10 +350,10 @@ class EMMotorOutputsGroup(om.Group):
         #                                     ("state", "peak_flux")],
         #                    promotes_outputs=[("max_state", "winding_max_peak_flux")])
 
-        coupled = self.options["coupled"]
+        # coupled = self.options["coupled"]
         # If not coupling to thermal solver, compute stator max flux here post coupling
-        if coupled != "thermal" and coupled != "thermal_full": # TODO: Change conditional logic to separate one way and fully coupled
-            stator_attrs = self.solvers[0].getOptions()["components"]["stator"]["attrs"]
+        # if coupled != "thermal" and coupled != "thermal_full": # TODO: Change conditional logic to separate one way and fully coupled
+            # stator_attrs = self.solvers[0].getOptions()["components"]["stator"]["attrs"]
             # self.add_subsystem("stator_max_flux_magnitude",
             #                     MachFunctional(solver=self.solvers[0],
             #                                    func="max_flux_magnitude:stator",
@@ -357,41 +363,41 @@ class EMMotorOutputsGroup(om.Group):
             #                     promotes_inputs=[("mesh_coords", "x_em_vol"),
             #                                      ("state", "em_state0")],
             #                     promotes_outputs=["max_flux_magnitude:stator"])
-            self.add_subsystem("stator_max_flux_magnitude",
-                               MachFunctional(solver=self.solvers[0],
-                                              func="max_state:stator",
-                                              func_options={
-                                                "rho": 10,
-                                                "attributes": stator_attrs,
-                                                "state": "peak_flux"
-                                              },
-                                              depends=["state", "mesh_coords"],
-                                              check_partials=self.check_partials),
-                               promotes_inputs=[("mesh_coords", "x_em_vol"),
-                                                ("state", "peak_flux")],
-                               promotes_outputs=[("max_state:stator", "max_flux_magnitude:stator")])
+            # self.add_subsystem("stator_max_flux_magnitude",
+            #                    MachFunctional(solver=self.solvers[0],
+            #                                   func="max_state:stator",
+            #                                   func_options={
+            #                                     "rho": 10,
+            #                                     "attributes": stator_attrs,
+            #                                     "state": "peak_flux"
+            #                                   },
+            #                                   depends=["state", "mesh_coords"],
+            #                                   check_partials=self.check_partials),
+            #                    promotes_inputs=[("mesh_coords", "x_em_vol"),
+            #                                     ("state", "peak_flux")],
+            #                    promotes_outputs=[("max_state:stator", "max_flux_magnitude:stator")])
 
         core_loss_depends = ["mesh_coords",
+                             "temperature",
                              "frequency",
-                             "max_flux_magnitude:stator"]
+                            #  "max_flux_magnitude:stator",
+                             "peak_flux"]
 
-        # Error handling here in case the option to use CAL2 or Steinmetz bool does not exist
-        try:
-            UseCAL2forCoreLoss=self.solvers[0].getOptions()["UseCAL2forCoreLoss"]
-        except:
-            UseCAL2forCoreLoss=False # defaulting to False (meaning don't use CAL2, rather use Steinmetz)
-
+        stator_attrs = self.solvers[0].getOptions()["components"]["stator"]["attrs"]
+        rotor_attrs = self.solvers[0].getOptions()["components"]["rotor"]["attrs"]
+        print(stator_attrs)
+        print(rotor_attrs)
         stator_core_loss_options = {
-            "attributes": self.solvers[0].getOptions()["components"]["stator"]["attrs"],
-            "UseCAL2forCoreLoss": UseCAL2forCoreLoss
+            "attributes": [*stator_attrs, *rotor_attrs]
         }
+        print(stator_core_loss_options)
         self.add_subsystem("stator_core_loss_raw",
                            MachFunctional(solver=self.solvers[0],
                                           func="core_loss",
                                           func_options=stator_core_loss_options,
                                           depends=core_loss_depends,
                                           check_partials=self.check_partials),
-                           promotes_inputs=[("mesh_coords", "x_em_vol"), *core_loss_depends[1:]],
+                           promotes_inputs=[("mesh_coords", "x_em_vol"), ("temperature", temperature_name), *core_loss_depends[2:]],
                            promotes_outputs=[("core_loss", "stator_core_loss_raw")])
 
         self.add_subsystem("stator_core_loss",
@@ -457,22 +463,22 @@ class EMMotorOutputsGroup(om.Group):
                            promotes_outputs=["pm_demag"])
         """
 
-        # TODO: Change the depends as needed
-        # Mach output for demagnetization proximity using Induced Exponential Aggregation (smooth max) function
-        magnets_attrs = self.solvers[0].getOptions()["components"]["magnets"]["attrs"]
-        self.add_subsystem("demag_proximity",
-                               MachFunctional(solver=self.solvers[0],
-                                              func="max_state:magnets",
-                                              func_options={
-                                                "rho": 10,
-                                                "attributes": magnets_attrs,
-                                                "state": "demag_proximity"
-                                              },
-                                              depends=["state", "mesh_coords"], #"flux_density"], including flux density as a depends causes B to be [1,1] exclusively in mach
-                                              check_partials=self.check_partials),
-                               promotes_inputs=[("mesh_coords", "x_em_vol"),
-                                                ("state", "pm_demag_field")],
-                               promotes_outputs=[("max_state:magnets", "demag_proximity_max:magnets")])
+        # # TODO: Change the depends as needed
+        # # Mach output for demagnetization proximity using Induced Exponential Aggregation (smooth max) function
+        # magnets_attrs = self.solvers[0].getOptions()["components"]["magnets"]["attrs"]
+        # self.add_subsystem("demag_proximity",
+        #                        MachFunctional(solver=self.solvers[0],
+        #                                       func="max_state:magnets",
+        #                                       func_options={
+        #                                         "rho": 10,
+        #                                         "attributes": magnets_attrs,
+        #                                         "state": "demag_proximity"
+        #                                       },
+        #                                       depends=["state", "mesh_coords"], #"flux_density"], including flux density as a depends causes B to be [1,1] exclusively in mach
+        #                                       check_partials=self.check_partials),
+        #                        promotes_inputs=[("mesh_coords", "x_em_vol"),
+        #                                         ("state", "pm_demag_field")],
+        #                        promotes_outputs=[("max_state:magnets", "demag_proximity_max:magnets")])
 
         ###### uncomment here
 
@@ -535,13 +541,10 @@ class EMMotorBuilder(Builder):
             self.warper = None
 
         self.state_depends = ["mesh_coords",
+                              "temperature",
                               "current_density:phaseA",
                               "current_density:phaseB",
                               "current_density:phaseC"]
-
-        # TODO: Answer QUESTION: Will current logic capture the initial temperature field or will it capture the solved temperature state?
-        if self.coupled == "thermal_full":
-                self.state_depends.append("temperature")
 
     def get_coupling_group_subsystem(self, scenario_name=None):
         return EMMotorCouplingGroup(solvers=self.solvers,
@@ -558,6 +561,7 @@ class EMMotorBuilder(Builder):
     def get_pre_coupling_subsystem(self, scenario_name=None):
         return EMMotorPrecouplingGroup(solvers=self.solvers,
                                        warper=self.warper,
+                                       coupled=self.coupled,
                                        scenario_name=scenario_name)
 
     def get_post_coupling_subsystem(self, scenario_name=None):

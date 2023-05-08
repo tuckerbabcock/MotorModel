@@ -45,15 +45,29 @@ class ScenarioMotor(Scenario):
         if thermal_builder is not None:
             thermal = thermal_builder.get_coupling_group_subsystem(self.name)
             coupling_group.mphys_add_subsystem("thermal", thermal)
+            # coupling_group.promotes("thermal", ("conduct_state", "temperature"))
 
-        # TODO: Answer QUESTION: is this how NLBGS will be implemented?
-        if em_motor_builder.coupled=="thermal_full":
-            coupling_group.nonlinear_solver = om.NonlinearBlockGS(maxiter=25, iprint=2,
-                                                              atol=1e-8, rtol=1e-8,
-                                                              use_aitken=True)
-            coupling_group.linear_solver = om.LinearBlockGS(maxiter=25, iprint=2,
-                                                        atol=1e-8, rtol=1e-8,
-                                                        use_aitken=True)
+        if em_motor_builder.coupled == "thermal":
+            coupling_group.nonlinear_solver = om.NonlinearBlockGS(maxiter=50, iprint=2,
+                                                                  atol=1e-8, rtol=1e-8,
+                                                                  use_aitken=False)
+            # coupling_group.linear_solver = om.DirectSolver(assemble_jac=False)
+            
+            coupling_group.linear_solver = om.PETScKrylov(maxiter=25, iprint=2,
+                                                          atol=1e-12, rtol=1e-6,
+                                                          restart=25)            
+            coupling_group.linear_solver.precon = om.LinearBlockGS(maxiter=1, iprint=2,
+                                                                   atol=1e-8, rtol=1e-8,
+                                                                   use_aitken=False)
+            # coupling_group.linear_solver.precon = om.LinearBlockJac(maxiter=1, iprint=2,
+            #                                                        atol=1e-8, rtol=1e-8)
+
+            # coupling_group.linear_solver = om.LinearBlockGS(maxiter=10, iprint=2,
+            #                                                 atol=1e-8, rtol=1e-8,
+            #                                                 use_aitken=False)
+            # coupling_group.linear_solver = om.LinearBlockJac(maxiter=25, iprint=2,
+            #                                                  atol=1e-8, rtol=1e-8)
+
         else: 
             # Only one-way coupled
             coupling_group.nonlinear_solver = om.NonlinearRunOnce() 
@@ -77,12 +91,15 @@ class ScenarioMotor(Scenario):
             self.connect(f"em_pre.three_phase{idx}.current_density:phaseC",
                          f"solver{idx}.current_density:phaseC")
         
-        # TODO: Connect the temperature state here
-        if em_motor_builder.coupled=="thermal_full":
-            self.connect("conduct_state","temperature")
-            for idx, _ in enumerate(em_motor_builder.solvers):
-                self.connect(f"conduct_state",
-                            f"solver{idx}.temperature")
+        if em_motor_builder.coupled == "thermal":
+            self.connect("conduct_state", "temperature")
+        # elif em_motor_builder.coupled == "thermal:feedforward":
+            # self.promotes("em_pre", any=[("temperature", "reference_temperature")])
+            # self.promotes("coupling", any=[("temperature", "reference_temperature")])
+            # self.promotes("em_post", any=[("temperature", "reference_temperature")])
+            # for idx, _ in enumerate(em_motor_builder.solvers):
+            #     self.connect(f"conduct_state",
+            #                 f"solver{idx}.temperature")
 
         # self.connect("em_pre.slot_area", "slot_area")
 
@@ -100,7 +117,12 @@ class ScenarioMotor(Scenario):
                                      "current_density",
                                      "rms_current",
                                      "num_turns",
-                                     "strands_in_hand"])
+                                     "strands_in_hand",
+                                     "fill_factor",
+                                     "wire_length"])
+
+        # self.promotes("coupling", any=[('conduct_state', 'temperature')])
+            # coupling_group.promotes('thermal', outputs=[('conduct_state', 'temperature')])
 
         # promote all unconnected I/O from em_post
         self.promotes("em_post", any=[

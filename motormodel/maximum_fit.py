@@ -2,8 +2,8 @@ import numpy as np
 import openmdao.api as om
 
 def discrete_induced_exponential(data, rho):
-    actual_max = np.amax(data)
-    e_rho_f = np.exp(rho * (data - actual_max))
+    actual_maxes = np.amax(data, axis=0)
+    e_rho_f = np.exp(rho * (data - actual_maxes))
     numerator = np.sum(data * e_rho_f, axis=0)
     denominator = np.sum(e_rho_f, axis=0)
 
