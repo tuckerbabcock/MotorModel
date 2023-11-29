@@ -113,12 +113,6 @@ class EMMotorCouplingGroup(om.Group):
             #                                     ("state", "peak_flux")],
             #                    promotes_outputs=[("max_state:stator", "max_flux_magnitude:stator")])
 
-            # self.add_subsystem("wire_length",
-            #                    WireLength(),
-            #                    promotes_inputs=["*"],
-            #                    promotes_outputs=["wire_length"])
-
-
             stator_attrs = self.solvers[0].getOptions()["components"]["stator"]["attrs"]
             # rotor_attrs = self.solvers[0].getOptions()["components"]["rotor"]["attrs"]
             rotor_attrs = []
@@ -404,43 +398,55 @@ class EMMotorOutputsGroup(om.Group):
                            om.ExecComp("stator_core_loss = stator_core_loss_raw * stack_length / model_depth"),
                            promotes=["*"])
 
-        self.add_subsystem("stator_mass_raw",
+        # self.add_subsystem("stator_mass_raw",
+        #                    MachFunctional(solver=self.solvers[0],
+        #                                   func="mass:stator",
+        #                                   func_options=stator_core_loss_options,
+        #                                   depends=["mesh_coords"],
+        #                                   check_partials=self.check_partials),
+        #                    promotes_inputs=[("mesh_coords", "x_em_vol")],
+        #                    promotes_outputs=[("mass:stator", "stator_mass_raw")])
+
+        # self.add_subsystem("stator_mass",
+        #                    om.ExecComp("stator_mass = stator_mass_raw * stack_length / model_depth"),
+        #                    promotes=["*"])
+
+        self.add_subsystem("motor_mass_raw",
                            MachFunctional(solver=self.solvers[0],
-                                          func="mass:stator",
-                                          func_options=stator_core_loss_options,
-                                          depends=["mesh_coords"],
+                                          func="mass:motor",
+                                          depends=["mesh_coords", "fill_factor"],
                                           check_partials=self.check_partials),
-                           promotes_inputs=[("mesh_coords", "x_em_vol")],
-                           promotes_outputs=[("mass:stator", "stator_mass_raw")])
+                           promotes_inputs=[("mesh_coords", "x_em_vol"), "fill_factor"],
+                           promotes_outputs=[("mass:motor", "motor_mass_raw")])
 
-        self.add_subsystem("stator_mass",
-                           om.ExecComp("stator_mass = stator_mass_raw * stack_length / model_depth"),
-                           promotes=["*"])
-
-        self.add_subsystem("stator_volume_raw",
-                           MachFunctional(solver=self.solvers[0],
-                                          func="volume:stator",
-                                          func_options=stator_core_loss_options,
-                                          depends=["mesh_coords"],
-                                          check_partials=self.check_partials),
-                           promotes_inputs=[("mesh_coords", "x_em_vol")],
-                           promotes_outputs=[("volume:stator", "stator_volume_raw")])
-
-        self.add_subsystem("stator_volume",
-                           om.ExecComp("stator_volume = stator_volume_raw * stack_length / model_depth"),
+        self.add_subsystem("motor_mass",
+                           om.ExecComp("motor_mass = motor_mass_raw * stack_length / model_depth"),
                            promotes=["*"])
 
-        self.add_subsystem("total_loss",
-                           om.ExecComp("total_loss = ac_loss + dc_loss + stator_core_loss"),
+        # self.add_subsystem("stator_volume_raw",
+        #                    MachFunctional(solver=self.solvers[0],
+        #                                   func="volume:stator",
+        #                                   func_options=stator_core_loss_options,
+        #                                   depends=["mesh_coords"],
+        #                                   check_partials=self.check_partials),
+        #                    promotes_inputs=[("mesh_coords", "x_em_vol")],
+        #                    promotes_outputs=[("volume:stator", "stator_volume_raw")])
+
+        # self.add_subsystem("stator_volume",
+        #                    om.ExecComp("stator_volume = stator_volume_raw * stack_length / model_depth"),
+        #                    promotes=["*"])
+
+        self.add_subsystem("total_motor_loss",
+                           om.ExecComp("total_motor_loss = ac_loss + dc_loss + stator_core_loss"),
                            promotes=["*"])
-        self.add_subsystem("power_out",
-                           om.ExecComp("power_out = average_torque * rpm * pi / 30"),
+        self.add_subsystem("motor_power_out",
+                           om.ExecComp("motor_power_out = average_torque * rpm * pi / 30"),
                            promotes=["*"])
-        self.add_subsystem("power_in",
-                           om.ExecComp("power_in = power_out + total_loss"),
+        self.add_subsystem("motor_power_in",
+                           om.ExecComp("motor_power_in = motor_power_out + total_motor_loss"),
                            promotes=["*"])
-        self.add_subsystem("efficiency",
-                           om.ExecComp("efficiency = power_out / power_in"),
+        self.add_subsystem("motor_efficiency",
+                           om.ExecComp("motor_efficiency = motor_power_out / motor_power_in"),
                            promotes=["*"])
         
         # TODO: In parallel, adding mach output for permanent magnet demagnetization constraint. Adjust as needed

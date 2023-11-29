@@ -202,10 +202,10 @@ class MotorCurrent(om.Group):
     def setup(self):
         theta_e = self.options["theta_e"]
 
-        self.add_subsystem("slot_area",
-                           SlotArea(),
-                           promotes_inputs=["*"],
-                           promotes_outputs=["slot_area"])
+        # self.add_subsystem("slot_area",
+        #                    SlotArea(),
+        #                    promotes_inputs=["*"],
+        #                    promotes_outputs=["slot_area"])
         self.add_subsystem("copper_area",
                            CopperArea(),
                            promotes_inputs=["*"])
@@ -217,8 +217,9 @@ class MotorCurrent(om.Group):
         self.connect("copper_area.strand_area", "rms_current.strand_area")
 
         self.add_subsystem("fill_factor", om.ExecComp("fill_factor = copper_area / slot_area"),
+                           promotes_inputs=["slot_area"],
                            promotes_outputs=["fill_factor"])
-        self.connect("slot_area", "fill_factor.slot_area")
+        # self.connect("slot_area", "fill_factor.slot_area")
         self.connect("copper_area.copper_area", "fill_factor.copper_area")
 
         self.add_subsystem("current_density",

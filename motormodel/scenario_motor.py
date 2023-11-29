@@ -48,19 +48,26 @@ class ScenarioMotor(Scenario):
             # coupling_group.promotes("thermal", ("conduct_state", "temperature"))
 
         if em_motor_builder.coupled == "thermal":
-            coupling_group.nonlinear_solver = om.NonlinearBlockGS(maxiter=50, iprint=2,
-                                                                  atol=1e-8, rtol=1e-8,
+            ### need forward derivatives to use Newton
+            # coupling_group.nonlinear_solver = om.NewtonSolver(solve_subsystems=False,
+            #                                                   maxiter=20, iprint=2,
+            #                                                   atol=1e-6, rtol=1e-6,)
+
+            coupling_group.nonlinear_solver = om.NonlinearBlockGS(maxiter=20, iprint=2,
+                                                                  atol=1e-8, rtol=1e-10,
                                                                   use_aitken=False)
+
             # coupling_group.linear_solver = om.DirectSolver(assemble_jac=False)
             
-            coupling_group.linear_solver = om.PETScKrylov(maxiter=25, iprint=2,
-                                                          atol=1e-12, rtol=1e-6,
-                                                          restart=25)            
+            coupling_group.linear_solver = om.PETScKrylov(maxiter=15, iprint=2,
+                                                          atol=1e-8, rtol=1e-10,
+                                                          restart=15)            
             coupling_group.linear_solver.precon = om.LinearBlockGS(maxiter=1, iprint=2,
                                                                    atol=1e-8, rtol=1e-8,
                                                                    use_aitken=False)
-            # coupling_group.linear_solver.precon = om.LinearBlockJac(maxiter=1, iprint=2,
-            #                                                        atol=1e-8, rtol=1e-8)
+
+            # coupling_group.linear_solver.precon = om.LinearBlockJac(maxiter=2, iprint=2,
+            #                                                         atol=1e-8, rtol=1e-8)
 
             # coupling_group.linear_solver = om.LinearBlockGS(maxiter=10, iprint=2,
             #                                                 atol=1e-8, rtol=1e-8,
@@ -72,7 +79,21 @@ class ScenarioMotor(Scenario):
             # Only one-way coupled
             coupling_group.nonlinear_solver = om.NonlinearRunOnce() 
             coupling_group.linear_solver = om.LinearRunOnce()
-        
+
+            # coupling_group.linear_solver = om.LinearBlockGS(maxiter=10, iprint=2,
+            #                                                 atol=1e-8, rtol=1e-8,
+            #                                                 use_aitken=False)
+
+            # coupling_group.linear_solver = om.PETScKrylov(maxiter=10, iprint=2,
+            #                                               atol=1e-12, rtol=1e-6,
+            #                                               restart=10)            
+            # coupling_group.linear_solver.precon = om.LinearBlockGS(maxiter=2, iprint=2,
+            #                                                        atol=1e-8, rtol=1e-8,
+            #                                                        use_aitken=False)
+
+            # coupling_group.linear_solver.precon = om.LinearBlockJac(maxiter=1, iprint=2,
+            #                                                         atol=1e-8, rtol=1e-8)
+
 
         self.mphys_add_subsystem('coupling', coupling_group)
 
@@ -91,6 +112,23 @@ class ScenarioMotor(Scenario):
             self.connect(f"em_pre.three_phase{idx}.current_density:phaseC",
                          f"solver{idx}.current_density:phaseC")
         
+        em_pre_promotes = ["num_slots",
+                           "stator_inner_radius",
+                           "tooth_tip_thickness",
+                        #    "tooth_tip_angle",
+                           "slot_depth",
+                        #    "slot_radius",
+                           "slot_area",
+                           "tooth_width",
+                        #    "shoe_spacing",
+                           "rms_current_density",
+                           "strand_radius",
+                           "current_density",
+                           "rms_current",
+                           "num_turns",
+                           "strands_in_hand",
+                           "fill_factor"]
+
         if em_motor_builder.coupled == "thermal":
             self.connect("conduct_state", "temperature")
         # elif em_motor_builder.coupled == "thermal:feedforward":
@@ -102,24 +140,11 @@ class ScenarioMotor(Scenario):
             #                 f"solver{idx}.temperature")
 
         # self.connect("em_pre.slot_area", "slot_area")
+        if em_motor_builder.coupled == "thermal" or em_motor_builder.coupled == "thermal:feedforward":
+            em_pre_promotes.append("wire_length")
 
         # promote all unconnected inputs from em_pre
-        self.promotes("em_pre", any=["num_slots",
-                                     "stator_inner_radius",
-                                     "tooth_tip_thickness",
-                                     "tooth_tip_angle",
-                                     "slot_depth",
-                                     "slot_radius",
-                                     "tooth_width",
-                                     "shoe_spacing",
-                                     "rms_current_density",
-                                     "strand_radius",
-                                     "current_density",
-                                     "rms_current",
-                                     "num_turns",
-                                     "strands_in_hand",
-                                     "fill_factor",
-                                     "wire_length"])
+        self.promotes("em_pre", any=em_pre_promotes)
 
         # self.promotes("coupling", any=[('conduct_state', 'temperature')])
             # coupling_group.promotes('thermal', outputs=[('conduct_state', 'temperature')])
@@ -129,14 +154,15 @@ class ScenarioMotor(Scenario):
                                       "average_torque",
                                     #   "energy",
                                       "stator_core_loss",
-                                      "total_loss",
-                                      "stator_mass",
-                                      "stator_volume",
+                                      "total_motor_loss",
+                                      "motor_mass",
+                                      "fill_factor",
+                                    #   "stator_volume",
                                       "num_slots",
                                       "dc_loss",
-                                      "efficiency",
-                                      "power_in",
-                                      "power_out",
+                                      "motor_efficiency",
+                                      "motor_power_in",
+                                      "motor_power_out",
                                       "stator_inner_radius",
                                       "tooth_tip_thickness",
                                       "slot_depth",
