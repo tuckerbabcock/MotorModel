@@ -1,6 +1,7 @@
 import openmdao.api as om
 from mphys import Multipoint
 from omESP import omESP
+# from invertermodel import Inverter
 
 from mach import MachBuilder
 
@@ -9,12 +10,13 @@ from .motor_em_builder import EMMotorBuilder
 from .motor_options import _buildSolverOptions
 from .valid_geometry import ValidLengths
 from .internal_cooling import InternalCooling, AirgapCooling
-from .tms import ThermalManagementSystem
+# from .tms import ThermalManagementSystem
 
 try:
     from collections.abc import Mapping
 except ImportErrror:
     from collections import Mapping
+
 
 def _nested_update(source, overrides):
     """
@@ -69,10 +71,6 @@ class Motor(Multipoint):
         if not two_dimensional:
             esp_outputs.append("model_depth")
 
-        self.add_subsystem("valid_lengths",
-                           ValidLengths(),
-                           promotes=['*'])
-
         egads_path = self.options["egads_path"]
         csm_path = self.options["csm_path"]
         geom_partials = self.options["geom_partials"]
@@ -82,6 +80,10 @@ class Motor(Multipoint):
                                  partials=geom_partials),
                            promotes_inputs=["*"],
                            promotes_outputs=esp_outputs)
+
+        self.add_subsystem("valid_lengths",
+                           ValidLengths(),
+                           promotes=['*'])
 
         geom_config_values = self.geom.getConfigurationValues()
         num_magnets = int(geom_config_values["num_magnets"])
@@ -163,28 +165,30 @@ class Motor(Multipoint):
             self.add_subsystem("internal_cooling_params",
                                InternalCooling(coolant_fluid="PGW30"),
                                promotes_inputs=[
-                                ("fluid_temp", "fluid_temp:in-slot-cooling"),
-                                ("duct_length", "stack_length"),
-                                ("duct_width", "coolant_thickness"),
-                                ("duct_height", "slot_depth"),
-                                ("fluid_velocity", "coolant_velocity"),
-                                ("num_ducts", "num_slots")
+                                   ("fluid_temp", "fluid_temp:in-slot-cooling"),
+                                   ("duct_length", "stack_length"),
+                                   ("duct_width", "coolant_thickness"),
+                                   ("duct_height", "slot_depth"),
+                                   ("fluid_velocity", "coolant_velocity"),
+                                   ("num_ducts", "num_slots")
                                ],
                                promotes_outputs=[
-                                ("heat_transfer_coefficient", "h:in-slot-cooling"),
-                                "flow_loss"
+                                   ("heat_transfer_coefficient",
+                                    "h:in-slot-cooling"),
+                                   "flow_loss"
                                ])
 
             self.add_subsystem("airgap_cooling_params",
                                AirgapCooling(airgap_fluid="air"),
                                promotes_inputs=[
-                                ("fluid_temp", "fluid_temp:airgap-convection"),
-                                "rotor_or",
-                                "stator_ir",
-                                "rpm",
+                                   ("fluid_temp", "fluid_temp:airgap-convection"),
+                                   "rotor_or",
+                                   "stator_ir",
+                                   "rpm",
                                ],
                                promotes_outputs=[
-                                ("heat_transfer_coefficient", "h:airgap-convection"),
+                                   ("heat_transfer_coefficient",
+                                    "h:airgap-convection"),
                                ])
 
             # thermal_flux_attributes = _thermal_options["bcs"]["flux"] # TODO: Answer QUESTION: what to put for thermal_flux boundary attributes? Attributes are in the other solver I believe
@@ -236,7 +240,7 @@ class Motor(Multipoint):
                                               "h:in-slot-cooling",
                                               "fluid_temp:in-slot-cooling",
                                               "h:airgap-convection"
-                                            ],
+                                          ],
                                           warper_type=None,
                                           warper_options=_warper_options,
                                           outputs=thermal_outputs,
@@ -245,24 +249,51 @@ class Motor(Multipoint):
         else:
             thermal_builder = None
 
-        self.mphys_add_scenario("analysis",
+        self.mphys_add_scenario("motor",
                                 ScenarioMotor(em_motor_builder=em_motor_builder,
                                               thermal_builder=thermal_builder))
 
-        self.add_subsystem("tms",
-                           ThermalManagementSystem(),
-                           promotes_inputs=["total_motor_loss"],
-                           promotes_outputs=["tms_mass", "tms_power_req"])
+        # self.add_subsystem("inverter",
+        #                    Inverter(),
+        #                    promotes_inputs=[('I_phase_rms', 'rms_current'),
+        #                                     ('r_wire', 'strand_radius'),
+        #                                     ('load_inductance', 'L'),
+        #                                     ('load_phase_back_emf',
+        #                                      'phase_back_emf'),
+        #                                     ('load_phase_resistance',
+        #                                      'stator_phase_resistance'),
+        #                                     ('electrical_frequency', 'frequency'),
+        #                                     'bus_voltage'])
 
-        self.add_subsystem("total_mass",
-                           om.ExecComp("total_mass = motor_mass + tms_mass"),
-                           promotes=['*'])
-        self.add_subsystem("total_power_in",
-                           om.ExecComp("total_power_in = motor_power_in + tms_power_req + flow_loss"),
-                           promotes=['*'])
-        self.add_subsystem("efficiency",
-                           om.ExecComp("efficiency = motor_power_out / total_power_in"),
-                           promotes=["*"])
+        # self.add_subsystem("total_loss",
+        #                    om.ExecComp(
+        #                        "total_loss = motor_loss + inverter_loss"),
+        #                    promotes=[("inverter_loss", "inverter.total_loss"),
+        #                              ("motor_loss", "motor.total_loss")])
+
+        # self.add_subsystem("tms",
+        #                    ThermalManagementSystem(),
+        #                    promotes_inputs=["total_loss"],
+        #                    promotes_outputs=["tms_mass", "tms_power_req"])
+
+        # self.add_subsystem("total_mass",
+        #                    om.ExecComp("total_mass = motor_mass + tms_mass"),
+        #                    promotes=['*'])
+        # self.add_subsystem("total_power_in",
+        #                    om.ExecComp(
+        #                        "total_power_in = motor_power_in + tms_power_req + flow_loss + inverter_loss"),
+        #                    promotes_inputs=[("motor_power_in", "motor.power_in"),
+        #                                     "tms_power_req",
+        #                                     "flow_loss",
+        #                                     ("inverter_loss", "inverter.loss")],
+        #                    promotes_outputs=['total_power_in'])
+
+        # self.add_subsystem("efficiency",
+        #                    om.ExecComp(
+        #                        "efficiency = motor_power_out / total_power_in"),
+        #                    promotes_inputs=[("motor_power_out", "motor.power_out"),
+        #                                     "total_power_in"],
+        #                    promotes_outputs=['efficiency'])
 
         # self.connect("x_surf", "x_em")
         # self.connect("x_surf", "x_em_vol", src_indices=[i for i in range(9) if i % 3 != 0 ])
@@ -273,13 +304,13 @@ class Motor(Multipoint):
         # if coupled == "thermal":
         #     self.connect("x_surf", "x_conduct")
 
-        analysis_promotes = [
+        motor_promotes = [
             "average_torque",
             #    "energy",
             "ac_loss",
             "dc_loss",
             "stator_core_loss",
-            "total_motor_loss",
+            "total_loss",
             "motor_mass",
             #    "max_flux_magnitude:stator",
             #    "max_flux_magnitude:winding",
@@ -288,22 +319,24 @@ class Motor(Multipoint):
             #    "winding_max_peak_flux",
             "rms_current",
             # "efficiency",
-            "motor_power_out",
-            "motor_power_in",
-            "fill_factor"
+            "power_out",
+            "power_in",
+            "fill_factor",
+            "phase_back_emf",
+            "stator_phase_resistance",
+            'L'
         ]
 
         if thermal_builder is not None:
             for output in thermal_outputs:
                 if isinstance(output, str):
-                    analysis_promotes.append(output)
+                    motor_promotes.append(output)
                 elif isinstance(output, tuple):
-                    analysis_promotes.append(output[0])
+                    motor_promotes.append(output[0])
 
-        self.promotes("analysis",
+        self.promotes("motor",
                       inputs=["*"],
-                      outputs=analysis_promotes
-                      )
+                      outputs=motor_promotes)
 
     def configure(self):
         two_dimensional = self.options["two_dimensional"]
@@ -341,7 +374,9 @@ class Motor(Multipoint):
 
         self.set_input_defaults('slot_depth', units='m')
         self.set_input_defaults('coolant_thickness', units='m')
-        self.set_input_defaults('fluid_temp:in-slot-cooling', units='K', val=300)
+        self.set_input_defaults(
+            'fluid_temp:in-slot-cooling', units='K', val=300)
         self.set_input_defaults('rpm', units='rpm', val=1000)
 
         self.set_input_defaults('stack_length', units='m', val=1.0)
+        self.set_input_defaults('strand_radius', units='m', val=1.0)
