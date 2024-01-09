@@ -58,6 +58,72 @@ hiperco_reluctivity = {
     "degree": 3
 }
 
+copperwire_conductivity = {
+    "model": "linear",
+    "sigma_T_ref": 58.14e6,
+    "T_ref": 293.15,
+    "alpha_resistivity": 3.8e-3
+}
+
+# Kh and ke using 300-1000Hz core loss data from ADA460527 at both temperatures
+# hiperco_core_loss = {
+#     "model": "CAL2",
+#     "T0": 293.15,
+#     "kh_T0": [0.0997091541786544, -0.129193571991623, 0.0900090637806644, -0.0212834836667556],
+#     "ke_T0": [-5.93693970727006e-06, 0.000117138629373709, -0.000130355460369590, 4.10973552619398e-05],
+#     "T1": 473.15,
+#     "kh_T1": [0.0895406177349016, -0.0810594723247055, 0.0377588555136910, -0.00511339186996760],
+#     "ke_T1": [1.79301614571386e-05, 7.45159671115992e-07, -1.19410662547280e-06, 3.53133402660246e-07]
+# }
+
+# Kh and ke at T0 using NASA data, and using 300-1000Hz core loss data from ADA460527 for T1
+# hiperco_core_loss = {
+#     "model": "CAL2",
+#     "T0": 293.15,
+#     "kh_T0": [3.53459639643710E-02, -4.23656050993207E-02, 2.74329953045377E-02, -6.28801111207747E-03],
+#     "ke_T0": [2.30116023975528E-06, 3.78697116656248E-05, -3.00628726670091E-05, 7.43296334411159E-06],
+#     "T1": 473.15,
+#     "kh_T1": [0.0895406177349016, -0.0810594723247055, 0.0377588555136910, -0.00511339186996760],
+#     "ke_T1": [1.79301614571386e-05, 7.45159671115992e-07, -1.19410662547280e-06, 3.53133402660246e-07]
+# }
+
+# Kh and ke at T0 using NASA data, and using 300-1000Hz core loss data from ADA460527 scaled to NASA for T1 (T1 ADA:T0 ADA::T1 Params:T0 NASA)
+# hiperco_core_loss = {
+#     "model": "CAL2",
+#     "T0": 293.15,
+#     "kh_T0": [3.53459639643710E-02, -4.23656050993207E-02, 2.74329953045377E-02, -6.28801111207747E-03],
+#     "ke_T0": [2.30116023975528E-06, 3.78697116656248E-05, -3.00628726670091E-05, 7.43296334411159E-06],
+#     "T1": 473.15,
+#     "kh_T1": [3.17413127598558E-02, -2.65813038615455E-02, 1.15081577621555E-02, -1.51070498618538E-03],
+#     "ke_T1": [-6.94973785686840E-06, 2.40902442182305E-07, -2.75387585074229E-07, 6.38685292721465E-08]
+# }
+
+# Kh and ke using 100-1000Hz core loss data for Supermendur (NASA report) at T0=23C, T1=150C
+hiperco_core_loss = {
+    "model": "CAL2",
+    "T0": 293.15,
+    "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+    "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+    "T1": 473.15,
+    "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+    "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+}
+
+# TODO: Allow for Steinmetz core loss to be set here (in place of the material library)
+
+# PM Demagnetization constraint parameters
+Nd2Fe14B_Demag = {
+      "T0": 293.15,
+      "alpha_B_r": -0.12,
+      "B_r_T0": 1.39,
+      "alpha_H_ci": -0.57,
+      "H_ci_T0": -1273.0,
+      "alpha_B_knee": 0.005522656,
+      "beta_B_knee": -1.4442405898,
+      "alpha_H_knee": 5.548346445,
+      "beta_H_knee": -2571.4027913402
+}
+
 # hiperco_reluctivity = {
 #     "model": "linear",
 #     "mu_r": 100
@@ -68,7 +134,8 @@ _components = {
         "attrs": _stator_attrs,
         "material": {
             "name": "hiperco50",
-            "reluctivity": hiperco_reluctivity
+            "reluctivity": hiperco_reluctivity,
+            "core_loss" : hiperco_core_loss
             # {
             #     # "model": "bh",
             #     # "cps": [5.4061, 4.1419, 3.9478, 3.8054, 4.1398, 4.5195, 5.0882, 7.6529, 11.2660, 11.8169, 13.5871, 13.5871],
@@ -87,7 +154,8 @@ _components = {
         "attrs": _rotor_attrs,
         "material": {
             "name": "hiperco50",
-            "reluctivity": hiperco_reluctivity
+            "reluctivity": hiperco_reluctivity,
+            "core_loss" : hiperco_core_loss
         }
     },
     "airgap": {
@@ -108,16 +176,23 @@ _components = {
     },
     "windings": {
         "attrs": _current_attrs,
-        "material": "copperwire"
+        "material": {
+            "name": "copperwire",
+            "conductivity": copperwire_conductivity
+        }
     },
     "magnets": {
         "attrs": _magnet_attrs,
-        "material": "Nd2Fe14B"
+        "material": {
+            "name": "Nd2Fe14B",
+            "Demag": Nd2Fe14B_Demag
+        }
     }
 }
 
 # _multipoint_rotations = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-_multipoint_rotations = [0]
+_multipoint_rotations = [0] # use for debugging
+# _multipoint_rotations = [0,2,4,6,8] # used for thesis results
 _hallbach_segments = 4
 
 class SequentialMotor(Motor):
@@ -129,4 +204,7 @@ class SequentialMotor(Motor):
                          csm_path=_csm_path,
                          multipoint_rotations=_multipoint_rotations,
                          hallbach_segments=_hallbach_segments,
+                         coupled="thermal_full",
+                        #  coupled="thermal",
+                        #  coupled=None,
                          **kwargs)

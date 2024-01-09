@@ -13,7 +13,7 @@ despmtr     shoe_spacing         0.025
 
 # Configuration Parameters:
 cfgpmtr     num_magnets          44.00000
-cfgpmtr     magnet_divisions     1.0
+cfgpmtr     magnet_divisions     2.0
 cfgpmtr     num_slots            27.00000
 cfgpmtr     heatsink_thickness   0.075
 cfgpmtr     shaft_thickness      0.05
