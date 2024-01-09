@@ -55,7 +55,7 @@ class Motor(Multipoint):
         self.options.declare("em_options", types=dict, default=None)
         self.options.declare("thermal_options", types=dict, default=None)
         self.options.declare("warper_options", types=dict, default=None)
-        self.options.declare("run_name")
+        self.options.declare("run_name", types=str, default=None)
         # self.options.declare("em_paraview_dir", types=str, default="motor_em")
         # self.options.declare("thermal_paraview_dir", types=str, default="motor_thermal")
         self.options.declare("geom_partials", desc="", default=None)
@@ -249,7 +249,7 @@ class Motor(Multipoint):
         else:
             thermal_builder = None
 
-        self.mphys_add_scenario("motor",
+        self.mphys_add_scenario("fem_motor",
                                 ScenarioMotor(em_motor_builder=em_motor_builder,
                                               thermal_builder=thermal_builder))
 
@@ -304,7 +304,7 @@ class Motor(Multipoint):
         # if coupled == "thermal":
         #     self.connect("x_surf", "x_conduct")
 
-        motor_promotes = [
+        fem_promotes = [
             "average_torque",
             #    "energy",
             "ac_loss",
@@ -330,13 +330,13 @@ class Motor(Multipoint):
         if thermal_builder is not None:
             for output in thermal_outputs:
                 if isinstance(output, str):
-                    motor_promotes.append(output)
+                    fem_promotes.append(output)
                 elif isinstance(output, tuple):
-                    motor_promotes.append(output[0])
+                    fem_promotes.append(output[0])
 
-        self.promotes("motor",
+        self.promotes("fem_motor",
                       inputs=["*"],
-                      outputs=motor_promotes)
+                      outputs=fem_promotes)
 
     def configure(self):
         two_dimensional = self.options["two_dimensional"]
