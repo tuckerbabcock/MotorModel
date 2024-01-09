@@ -66,6 +66,10 @@ class Motor(Multipoint):
     def setup(self):
         two_dimensional = self.options["two_dimensional"]
 
+        self.add_subsystem("geom_convert",
+                           om.ExecComp(),
+                           promotes=["*"])
+
         esp_outputs = ["x_surf", "num_slots",
                        "num_magnets", "magnet_divisions"]
         if not two_dimensional:
@@ -88,10 +92,6 @@ class Motor(Multipoint):
         geom_config_values = self.geom.getConfigurationValues()
         num_magnets = int(geom_config_values["num_magnets"])
         magnet_divisions = int(geom_config_values["magnet_divisions"])
-        num_slots = int(geom_config_values["num_slots"])
-
-        self.add_subsystem("convert", om.ExecComp("stator_inner_radius = stator_id / 2"),
-                           promotes=["*"])
 
         hallbach_segments = self.options["hallbach_segments"]
         num_poles = num_magnets / (hallbach_segments / 2)
@@ -309,7 +309,7 @@ class Motor(Multipoint):
             #    "energy",
             "ac_loss",
             "dc_loss",
-            "stator_core_loss",
+            "core_loss",
             "total_loss",
             "motor_mass",
             #    "max_flux_magnitude:stator",
@@ -317,7 +317,7 @@ class Motor(Multipoint):
             #    "stator_volume",
             "average_flux_magnitude:airgap",
             #    "winding_max_peak_flux",
-            "rms_current",
+            # "rms_current",
             # "efficiency",
             "power_out",
             "power_in",
@@ -355,6 +355,33 @@ class Motor(Multipoint):
             self.connect("x_surf", "x_em")
 
         geom_inputs = self.geom.get_io_metadata('input', metadata_keys=['val'])
+        self.geom_convert.add_expr("stator_od = 2 * stator_or",
+                                   stator_od={
+                                       "val": geom_inputs['stator_od']['val']},
+                                   stator_or={"val": geom_inputs['stator_od']['val']/2})
+        self.geom_convert.add_expr("stator_id = 2 * stator_ir",
+                                   stator_id={
+                                       "val": geom_inputs['stator_id']['val']},
+                                   stator_ir={"val": geom_inputs['stator_id']['val']/2})
+        self.geom_convert.add_expr("rotor_od = 2 * (rotor_or - magnet_thickness)",
+                                   rotor_od={
+                                       "val": geom_inputs['rotor_od']['val']},
+                                   rotor_or={
+                                       "val": geom_inputs['rotor_od']['val']/2 + geom_inputs['magnet_thickness']['val']},
+                                   magnet_thickness={"val": geom_inputs['magnet_thickness']['val']})
+        self.geom_convert.add_expr("rotor_id = 2 * rotor_ir",
+                                   rotor_id={
+                                       "val": geom_inputs['rotor_id']['val']},
+                                   rotor_ir={"val": geom_inputs['rotor_id']['val']/2})
+
+        self.set_input_defaults(
+            "stator_or", val=geom_inputs['stator_id']['val']/2, units='m')
+        self.set_input_defaults(
+            "stator_ir", val=geom_inputs['stator_id']['val']/2, units='m')
+        self.set_input_defaults(
+            "rotor_or", val=geom_inputs['stator_id']['val']/2, units='m')
+        self.set_input_defaults(
+            "rotor_ir", val=geom_inputs['stator_id']['val']/2, units='m')
 
         for geom_input in geom_inputs:
             self.set_input_defaults(geom_input, geom_inputs[geom_input]['val'])

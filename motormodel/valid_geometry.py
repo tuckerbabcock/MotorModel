@@ -58,6 +58,12 @@ class ToothLengths(om.ExplicitComponent):
                        desc=" The outer radius of the stator")
         self.add_input("stator_ir",
                        desc=" The inner radius of the stator")
+        self.add_input("rotor_or",
+                       desc=" The outer radius of the rotor")
+        self.add_input("rotor_ir",
+                       desc=" The inner radius of the rotor")
+        self.add_input("magnet_thickness",
+                       desc="The thickness of the permanent magnets")
         self.add_input("slot_depth",
                        desc=" The distance between the the stator inner radius and the edge of the stator yoke")
         self.add_input("tooth_width",
@@ -87,6 +93,14 @@ class ToothLengths(om.ExplicitComponent):
                         desc=" The arc length along the inside of the stator yoke")
         self.add_output("slot_area",
                         desc=" The winding area in the slot")
+        self.add_output("stator_yoke_thickness",
+                        desc="Thickness of the stator back iron")
+        self.add_output("rotor_yoke_thickness",
+                        desc="Thickness of the rotor back iron")
+        self.add_output("air_gap_thickness",
+                        desc="Thickness of the airgap")
+        self.add_output("coolant_spacing_margin",
+                        desc="The difference between the shoe spacing and the coolant channel thickness")
 
     def setup_partials(self):
         self.declare_partials('*', '*', method='cs')
@@ -94,6 +108,9 @@ class ToothLengths(om.ExplicitComponent):
     def compute(self, inputs, outputs):
         stator_or = inputs["stator_or"]
         stator_ir = inputs["stator_ir"]
+        rotor_or = inputs["rotor_or"]
+        rotor_ir = inputs["rotor_ir"]
+        magnet_thickness = inputs['magnet_thickness']
         slot_depth = inputs["slot_depth"]
         tooth_width = inputs["tooth_width"]
         tooth_tip_thickness = inputs["tooth_tip_thickness"]
@@ -182,6 +199,13 @@ class ToothLengths(om.ExplicitComponent):
                                                              coolant_thickness_angle,
                                                              pt1_theta)
 
+        outputs['stator_yoke_thickness'] = stator_or - \
+            stator_ir - slot_depth - tooth_tip_thickness
+        outputs['rotor_yoke_thickness'] = rotor_or - \
+            magnet_thickness - rotor_ir
+        outputs['air_gap_thickness'] = stator_ir - rotor_or
+        outputs['coolant_spacing_margin'] = shoe_spacing - coolant_thickness
+
 
 class ValidLengths(om.Group):
     def setup(self):
@@ -198,6 +222,9 @@ class ValidLengths(om.Group):
                            ToothLengths(),
                            promotes_inputs=["stator_or",
                                             "stator_ir",
+                                            "rotor_or",
+                                            "rotor_ir",
+                                            "magnet_thickness",
                                             "slot_depth",
                                             "tooth_width",
                                             "tooth_tip_thickness",
@@ -210,7 +237,11 @@ class ValidLengths(om.Group):
                            promotes_outputs=["shoe_inner_length",
                                              "tooth_length",
                                              "stator_yoke_arc_length",
-                                             "slot_area"])
+                                             "slot_area",
+                                             "stator_yoke_thickness",
+                                             "rotor_yoke_thickness",
+                                             "air_gap_thickness",
+                                             "coolant_spacing_margin"])
 
         self.connect("intersect_angle.theta",
                      "tooth_lengths.stator_yoke_fillet_angle")

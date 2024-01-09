@@ -27,7 +27,7 @@ class SlotArea(om.ExplicitComponent):
     def setup(self):
         self.add_input("num_slots",
                        desc=" The number of slots in the motor")
-        self.add_input("stator_inner_radius",
+        self.add_input("stator_ir",
                        desc=" The inner radius of the stator")
         self.add_input("tooth_tip_thickness",
                        desc=" The thickness at the end of the tooth")
@@ -50,7 +50,7 @@ class SlotArea(om.ExplicitComponent):
 
     def compute(self, inputs, outputs):
         # num_slots = inputs["num_slots"][0]
-        # sir = inputs["stator_inner_radius"][0]
+        # sir = inputs["stator_ir"][0]
         # ttt = inputs["tooth_tip_thickness"][0]
         # tta = inputs["tooth_tip_angle"][0] * np.pi / 180 # convert to radians
         # ds = inputs["slot_depth"][0]
@@ -82,7 +82,7 @@ class SlotArea(om.ExplicitComponent):
         # outputs["slot_area"] = slot_area
 
         num_slots = inputs["num_slots"][0]
-        stator_inner_radius = inputs["stator_inner_radius"][0]
+        stator_ir = inputs["stator_ir"][0]
         tooth_tip_thickness = inputs["tooth_tip_thickness"][0]
         tooth_tip_angle = inputs["tooth_tip_angle"][0] * \
             np.pi / 180  # convert to radians
@@ -91,10 +91,10 @@ class SlotArea(om.ExplicitComponent):
         tooth_width = inputs["tooth_width"][0]
         shoe_spacing = inputs["shoe_spacing"][0]
 
-        shoe_spacing_angle = shoe_spacing / stator_inner_radius  # radians
+        shoe_spacing_angle = shoe_spacing / stator_ir  # radians
         shoe_angle = 2*np.pi/num_slots - shoe_spacing_angle  # radians
 
-        trap_base = 2*np.pi * (stator_inner_radius +
+        trap_base = 2*np.pi * (stator_ir +
                                tooth_tip_thickness) / num_slots - shoe_spacing
         trap_top = tooth_width
 
@@ -112,8 +112,8 @@ class SlotArea(om.ExplicitComponent):
 
         tooth_area = trap_area + rect_area
 
-        winding_region_area = np.pi * ((stator_inner_radius + slot_depth) ** 2 - (
-            stator_inner_radius + tooth_tip_thickness) ** 2) / num_slots
+        winding_region_area = np.pi * ((stator_ir + slot_depth) ** 2 - (
+            stator_ir + tooth_tip_thickness) ** 2) / num_slots
         slot_area = (winding_region_area - tooth_area) / 2
         outputs["slot_area"] = slot_area
         # outputs["slot_area"] = 6e-5
@@ -281,13 +281,14 @@ class MotorCurrent(om.Group):
                            CopperArea(),
                            promotes_inputs=["*"])
 
-        self.add_subsystem("rms_current",
+        self.add_subsystem("rms_current_density",
                            om.ExecComp(
-                               "rms_current = rms_current_density * strand_area * strands_in_hand"),
+                               "rms_current_density = rms_current / (strand_area * strands_in_hand)"),
                            promotes_inputs=[
-                               "rms_current_density", "strands_in_hand"],
-                           promotes_outputs=["rms_current"])
-        self.connect("copper_area.strand_area", "rms_current.strand_area")
+                               "rms_current", "strands_in_hand"],
+                           promotes_outputs=["rms_current_density"])
+        self.connect("copper_area.strand_area",
+                     "rms_current_density.strand_area")
 
         self.add_subsystem("fill_factor", om.ExecComp("fill_factor = copper_area / slot_area"),
                            promotes_inputs=["slot_area"],
@@ -367,7 +368,7 @@ if __name__ == "__main__":
             problem.setup()
 
             problem["num_slots"] = 24
-            problem["stator_inner_radius"] = 0.0940855
+            problem["stator_ir"] = 0.0940855
             problem["tooth_tip_thickness"] = 0.000816392
             problem["tooth_tip_angle"] = 8.5
             problem["slot_depth"] = 0.00681009
@@ -393,7 +394,7 @@ if __name__ == "__main__":
             problem["strands_in_hand"] = 42
             problem["num_turns"] = 14
             problem["num_slots"] = 24
-            problem["stator_inner_radius"] = 0.06225
+            problem["stator_ir"] = 0.06225
             problem["tooth_tip_thickness"] = 0.001
             problem["tooth_tip_angle"] = 10
             problem["slot_depth"] = 0.01110
@@ -406,20 +407,11 @@ if __name__ == "__main__":
 
             problem.run_model()
 
-<<<<<<< HEAD
-            # self.assertAlmostEqual(8738124.47344907, problem.get_val("three_phase.current_density:phaseB")[0])
-            # self.assertAlmostEqual(0.6486044323901864, problem.get_val("fill_factor")[0])
-
-            self.assertAlmostEqual(9481465.53087528, problem.get_val("three_phase.current_density:phaseB")[0])
-            self.assertAlmostEqual(0.7037803807403412, problem.get_val("fill_factor")[0])
-            self.assertAlmostEqual(37.1562446325372, problem.get_val("rms_current")[0])
-=======
             self.assertAlmostEqual(8738124.47344907, problem.get_val(
                 "three_phase.current_density:phaseB")[0])
             # self.assertAlmostEqual(0.6486044323901864, problem.get_val("fill_factor")[0])
             self.assertAlmostEqual(
                 37.1562446325372, problem.get_val("rms_current")[0])
->>>>>>> coupling
 
         def test_ref_motor_current_partials(self):
             problem = om.Problem()
@@ -434,7 +426,7 @@ if __name__ == "__main__":
             problem["strands_in_hand"] = 42
             problem["num_turns"] = 14
             problem["num_slots"] = 24
-            problem["stator_inner_radius"] = 0.06225
+            problem["stator_ir"] = 0.06225
             problem["tooth_tip_thickness"] = 0.001
             problem["tooth_tip_angle"] = 10
             problem["slot_depth"] = 0.01110

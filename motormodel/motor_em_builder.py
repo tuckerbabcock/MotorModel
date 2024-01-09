@@ -198,15 +198,11 @@ class EMMotorPrecouplingGroup(om.Group):
         self.add_subsystem(f"current",
                            MotorCurrent(theta_e=theta_e),
                            promotes_inputs=["*"],
-                           promotes_outputs=["rms_current",
-                                             "current_density",
-                                             "three_phase*.current_density:phase*",
-<<<<<<< HEAD
-                                             "fill_factor",
-                                             ])
-=======
-                                             "three_phase*.current:phase*",
-                                             "fill_factor"])
+                           promotes_outputs=[
+                               "current_density",
+                               "three_phase*.current_density:phase*",
+                               "three_phase*.current:phase*",
+                               "fill_factor"])
 
         # If coupling to thermal solver, compute wire length for heat sources to use
         if coupled == "thermal" or coupled == "thermal:feedforward":
@@ -215,7 +211,6 @@ class EMMotorPrecouplingGroup(om.Group):
                                promotes_inputs=["*"],
                                promotes_outputs=["wire_length"])
 
->>>>>>> coupling
 
 class EMMotorOutputsGroup(om.Group):
     """
@@ -503,7 +498,7 @@ class EMMotorOutputsGroup(om.Group):
                                             "num_slots",
                                             "num_turns",
                                             "num_slots",
-                                            "stator_inner_radius",
+                                            "stator_ir",
                                             "tooth_tip_thickness",
                                             "slot_depth",
                                             "tooth_width",
@@ -560,56 +555,33 @@ class EMMotorOutputsGroup(om.Group):
         #                                     ("state", "peak_flux")],
         #                    promotes_outputs=[("max_state:stator", "max_flux_magnitude:stator")])
 
-<<<<<<< HEAD
-            rotor_attrs = self.solvers[0].getOptions()["components"]["rotor"]["attrs"]
-            self.add_subsystem("rotor_max_flux_magnitude",
-                               MachFunctional(solver=self.solvers[0],
-                                              func="max_state:rotor",
-                                              func_options={
-                                                "rho": 10,
-                                                "attributes": rotor_attrs,
-                                                "state": "peak_flux"
-                                              },
-                                              depends=["state", "mesh_coords"],
-                                              check_partials=self.check_partials),
-                               promotes_inputs=[("mesh_coords", "x_em_vol"),
-                                                ("state", "peak_flux")],
-                               promotes_outputs=[("max_state:rotor", "max_flux_magnitude:rotor")])
-
-        stator_core_loss_depends = ["mesh_coords",
-                                    "frequency",
-                                    "max_flux_magnitude:stator"]
-=======
         core_loss_depends = ["mesh_coords",
                              "temperature",
                              "frequency",
                              #  "max_flux_magnitude:stator",
                              "peak_flux"]
->>>>>>> coupling
 
         stator_attrs = self.solvers[0].getOptions(
         )["components"]["stator"]["attrs"]
         rotor_attrs = self.solvers[0].getOptions(
         )["components"]["rotor"]["attrs"]
-        print(stator_attrs)
-        print(rotor_attrs)
-        stator_core_loss_options = {
+
+        core_loss_options = {
             "attributes": [*stator_attrs, *rotor_attrs]
         }
-        print(stator_core_loss_options)
-        self.add_subsystem("stator_core_loss_raw",
+        self.add_subsystem("core_loss_raw",
                            MachFunctional(solver=self.solvers[0],
-                                          func="core_loss:stator",
-                                          func_options=stator_core_loss_options,
-                                          depends=stator_core_loss_depends,
+                                          func="core_loss",
+                                          func_options=core_loss_options,
+                                          depends=core_loss_depends,
                                           check_partials=self.check_partials),
                            promotes_inputs=[
                                ("mesh_coords", "x_em_vol"), ("temperature", temperature_name), *core_loss_depends[2:]],
-                           promotes_outputs=[("core_loss", "stator_core_loss_raw")])
+                           promotes_outputs=[("core_loss", "core_loss_raw")])
 
-        self.add_subsystem("stator_core_loss",
+        self.add_subsystem("core_loss",
                            om.ExecComp(
-                               "stator_core_loss = stator_core_loss_raw * stack_length / model_depth"),
+                               "core_loss = core_loss_raw * stack_length / model_depth"),
                            promotes=["*"])
 
         # self.add_subsystem("stator_mass_raw",
@@ -655,7 +627,7 @@ class EMMotorOutputsGroup(om.Group):
 
         self.add_subsystem("total_loss",
                            om.ExecComp(
-                               "total_loss = ac_loss + dc_loss + stator_core_loss"),
+                               "total_loss = ac_loss + dc_loss + core_loss"),
                            promotes=["*"])
         self.add_subsystem("power_out",
                            om.ExecComp(

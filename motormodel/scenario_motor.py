@@ -127,7 +127,7 @@ class ScenarioMotor(Scenario):
                          f"em_post.inductance.flux_linkage_q{idx}")
 
         em_pre_promotes = ["num_slots",
-                           "stator_inner_radius",
+                           "stator_ir",
                            "tooth_tip_thickness",
                            #    "tooth_tip_angle",
                            "slot_depth",
@@ -135,7 +135,6 @@ class ScenarioMotor(Scenario):
                            "slot_area",
                            "tooth_width",
                            #    "shoe_spacing",
-                           "rms_current_density",
                            "strand_radius",
                            "current_density",
                            "rms_current",
@@ -167,7 +166,7 @@ class ScenarioMotor(Scenario):
         self.promotes("em_post", any=[
             "average_torque",
             #   "energy",
-            "stator_core_loss",
+            "core_loss",
             "total_loss",
             "motor_mass",
             "fill_factor",
@@ -177,7 +176,7 @@ class ScenarioMotor(Scenario):
             "efficiency",
             "power_in",
             "power_out",
-            "stator_inner_radius",
+            "stator_ir",
             "tooth_tip_thickness",
             "slot_depth",
             "tooth_width",
