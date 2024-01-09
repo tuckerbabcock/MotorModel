@@ -289,17 +289,6 @@ class MotorCurrent(om.Group):
                            promotes_outputs=["rms_current"])
         self.connect("copper_area.strand_area", "rms_current.strand_area")
 
-<<<<<<< HEAD
-        self.add_subsystem("fill_factor",
-                           om.ExecComp("fill_factor = copper_area / slot_area"),
-                           promotes_outputs=['fill_factor'])
-        self.connect("slot_area", "fill_factor.slot_area")
-        self.connect("copper_area.copper_area", "fill_factor.copper_area")
-
-        self.add_subsystem("current_density",
-                           om.ExecComp("current_density = rms_current_density * power(2, 1./2) * fill_factor"),
-                           promotes_inputs=["rms_current_density", "fill_factor"],
-=======
         self.add_subsystem("fill_factor", om.ExecComp("fill_factor = copper_area / slot_area"),
                            promotes_inputs=["slot_area"],
                            promotes_outputs=["fill_factor"])
@@ -311,7 +300,6 @@ class MotorCurrent(om.Group):
                                "current_density = rms_current_density * power(2, 1./2) * fill_factor"),
                            promotes_inputs=[
                                "rms_current_density", "fill_factor"],
->>>>>>> coupling
                            promotes_outputs=["current_density"])
         # self.connect("fill_factor.fill_factor", "current_density.fill_factor")
 
