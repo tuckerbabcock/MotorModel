@@ -168,7 +168,7 @@ class ScenarioMotor(Scenario):
             #   "energy",
             "core_loss",
             "total_loss",
-            "motor_mass",
+            "mass",
             "fill_factor",
             #   "stator_volume",
             "num_slots",

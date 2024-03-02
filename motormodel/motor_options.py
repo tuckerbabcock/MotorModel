@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def _buildMultipointOptions(num_magnets,
                             magnet_attrs,
                             magnet_divisions,
@@ -37,15 +38,16 @@ def _buildMultipointOptions(num_magnets,
 
     multipoint_opts = []
     for rotation in rotations:
-        rotated_attrs = [magnet_attrs[(i+rotation) % num_magnet_attrs] for i, _ in enumerate(magnet_attrs)]
+        rotated_attrs = [magnet_attrs[(i+rotation) % num_magnet_attrs]
+                         for i, _ in enumerate(magnet_attrs)]
 
         theta_m = rotation / num_magnet_attrs * (2*np.pi)
         # divided by 4 since magnetis are in a hallbach array, takes 4 magnets to get 2 poles
-        theta_e = ((num_magnet_attrs // magnet_divisions)/2) * theta_m / 2;
+        theta_e = ((num_magnet_attrs // magnet_divisions)/2) * theta_m / 2
 
         multipoint_opts.append({
             "magnets": {
-                "Nd2Fe14B" : {
+                "Nd2Fe14B": {
                     # "north": [attr for i in magnet_idxs["north"] for attr in rotated_attrs[i:i+magnet_divisions]],
                     # "cw": [attr for i in magnet_idxs["cw"] for attr in rotated_attrs[i:i+magnet_divisions]],
                     # "south": [attr for i in magnet_idxs["south"] for attr in rotated_attrs[i:i+magnet_divisions]],
@@ -60,6 +62,7 @@ def _buildMultipointOptions(num_magnets,
             "theta_e": theta_e + theta_e_offset
         })
     return multipoint_opts
+
 
 def _buildCurrentOptions(current_attrs, current_indices):
     current_options = {
@@ -149,8 +152,10 @@ def _buildSolverOptions(components,
                                               theta_e_offset)
 
     if spacer_attrs is not None:
-        components["magnets"]["attrs"] = [attr for attr in components["magnets"]["attrs"] if attr not in spacer_attrs]
-        components["airgap"]["attrs"] = [*components["airgap"]["attrs"], *spacer_attrs]
+        components["magnets"]["attrs"] = [
+            attr for attr in components["magnets"]["attrs"] if attr not in spacer_attrs]
+        components["airgap"]["attrs"] = [
+            *components["airgap"]["attrs"], *spacer_attrs]
         components.pop("magnet_spacers")
 
     em_options = {

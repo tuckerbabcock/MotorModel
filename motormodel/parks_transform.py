@@ -18,7 +18,7 @@ class ParksTransform(om.ExplicitComponent):
         self.add_output("d")
         self.add_output("q")
 
-        self.declare_partials("*", "*")
+        self.declare_partials("*", "*", method='cs')
 
     def compute(self, inputs, outputs):
         theta_e = self.options["theta_e"]

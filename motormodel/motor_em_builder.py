@@ -244,7 +244,7 @@ class EMMotorOutputsGroup(om.Group):
             airgap_attrs = solver.getOptions()["components"]["airgap"]["attrs"]
             torque_opts = {
                 "attributes": [*rotor_attrs, *magnet_attrs],
-                "axis": [0.0, 0.0, 1.0],
+                "axis": [0.0, 0.0, -1.0],
                 "about": [0.0, 0.0, 0.0],
                 "air_attributes": airgap_attrs
             }
@@ -389,9 +389,10 @@ class EMMotorOutputsGroup(om.Group):
                     self.promotes("flux_linkage",
                                   inputs=[(f"flux_linkage{idx}_{current_group}_{source_name}.mesh_coords", "x_em_vol"),
                                           (f"flux_linkage{idx}_{current_group}_{source_name}.state", f"em_state{idx}"),
-                                          "stack_length"])
+                                          "stack_length",
+                                          "num_turns"])
 
-                exec_comp_string = f"flux_linkage{idx}_{current_group} = stack_length * ({output_names[0]}"
+                exec_comp_string = f"flux_linkage{idx}_{current_group} = num_turns * stack_length * ({output_names[0]}"
                 for name in output_names[1:]:
                     exec_comp_string += f"+ {name}"
                 exec_comp_string += ")"
@@ -607,9 +608,9 @@ class EMMotorOutputsGroup(om.Group):
                                ("mesh_coords", "x_em_vol"), "fill_factor"],
                            promotes_outputs=[("mass:motor", "motor_mass_raw")])
 
-        self.add_subsystem("motor_mass",
+        self.add_subsystem("mass",
                            om.ExecComp(
-                               "motor_mass = motor_mass_raw * stack_length / model_depth"),
+                               "mass = motor_mass_raw * stack_length / model_depth"),
                            promotes=["*"])
 
         # self.add_subsystem("stator_volume_raw",
@@ -631,7 +632,7 @@ class EMMotorOutputsGroup(om.Group):
                            promotes=["*"])
         self.add_subsystem("power_out",
                            om.ExecComp(
-                               "power_out = average_torque * rpm * pi / 30"),
+                               "power_out = abs(average_torque) * rpm * pi / 30"),
                            promotes=["*"])
         self.add_subsystem("power_in",
                            om.ExecComp(

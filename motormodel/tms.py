@@ -9,13 +9,13 @@ class ThermalManagementSystem(om.ExplicitComponent):
         self.add_input(
             "total_loss", desc=" The sum of power needed to be rejected by the thermal management system")
 
-        self.add_output("tms_mass")
-        self.add_output("tms_power_req")
+        self.add_output("mass")
+        self.add_output("power_req")
 
         self.declare_partials('*', '*', method='cs')
 
     def compute(self, inputs, outputs):
         p_rej = inputs["total_loss"]
 
-        outputs["tms_mass"] = 0.407 * (p_rej*1e-3) + 1.504
-        outputs["tms_power_req"] = 0.265 * p_rej + 0.133
+        outputs["mass"] = 0.407 * (p_rej*1e-3) + 1.504
+        outputs["power_req"] = 0.265 * p_rej + 0.133

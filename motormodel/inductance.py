@@ -24,6 +24,8 @@ class Inductance(om.ExplicitComponent):
         # self.add_output("L_d")
         # self.add_output("L_fd")
 
+        self.declare_partials('*', '*', method='cs')
+
     def compute(self, inputs, outputs):
         n = self.options['n']
 
@@ -31,7 +33,8 @@ class Inductance(om.ExplicitComponent):
 
         L_q = 0
         for idx in range(n):
-            L_q += inputs[f"flux_linkage_q{idx}"] / inputs[f"current_q{idx}"]
+            L_q += np.sqrt((inputs[f"flux_linkage_q{idx}"] /
+                           inputs[f"current_q{idx}"])**2)
 
         outputs["L"] = L_q / n + L_le
 
